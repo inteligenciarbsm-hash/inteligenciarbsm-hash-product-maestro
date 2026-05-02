@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, Package, LogOut } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   useProducts,
   useCreateProduct,
@@ -24,7 +24,7 @@ import {
   useDeleteProduct,
   type Product,
 } from "@/hooks/useProducts";
-import { useAuth } from "@/contexts/AuthContext";
+import AppHeader from "@/components/AppHeader";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Nome obrigatório").max(200),
@@ -48,7 +48,6 @@ const emptyForm = {
 };
 
 const Products = () => {
-  const { user, signOut } = useAuth();
   const { data: products = [], isLoading, error } = useProducts();
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
@@ -149,28 +148,14 @@ const Products = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container flex items-center justify-between py-4">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-semibold">Cadastro de Produtos</h1>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">v1.1</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground hidden md:inline">{user?.email}</span>
-            <Button variant="outline" size="sm" onClick={() => signOut()}>
-              <LogOut className="h-4 w-4 mr-1" /> Sair
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="container py-8 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Produtos</h2>
+            <h2 className="text-2xl font-bold">Produtos da marca própria</h2>
             <p className="text-sm text-muted-foreground">
-              Conectado ao Supabase — alterações são persistidas no banco.
+              Cadastro de itens vinculados aos chamados do SAC.
             </p>
           </div>
           <Button onClick={openCreate}>

@@ -71,6 +71,68 @@ export type Database = {
         }
         Relationships: []
       }
+      tickets: {
+        Row: {
+          category: string
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          description: string
+          id: string
+          order_number: string | null
+          priority: string
+          product_id: string | null
+          resolution: string | null
+          status: string
+          store: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          description: string
+          id?: string
+          order_number?: string | null
+          priority?: string
+          product_id?: string | null
+          resolution?: string | null
+          status?: string
+          store?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          description?: string
+          id?: string
+          order_number?: string | null
+          priority?: string
+          product_id?: string | null
+          resolution?: string | null
+          status?: string
+          store?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

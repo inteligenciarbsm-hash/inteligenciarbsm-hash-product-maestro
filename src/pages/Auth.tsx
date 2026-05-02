@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Package } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const credentialsSchema = z.object({
@@ -76,14 +75,20 @@ const Auth = () => {
     !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-2">
-            <Package className="h-8 w-8 text-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-primary/5 to-background p-4">
+      <Card className="w-full max-w-md border-border/60 shadow-lg">
+        <CardHeader className="text-center space-y-3">
+          <div className="flex justify-center">
+            <div className="h-14 w-14 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-md">
+              RB
+            </div>
           </div>
-          <CardTitle>Produtos DB</CardTitle>
-          <CardDescription>Entre ou crie sua conta para gerenciar seus produtos.</CardDescription>
+          <div>
+            <CardTitle className="text-2xl">SAC Rede Brasil</CardTitle>
+            <CardDescription className="mt-1">
+              Atendimento ao consumidor — marca própria
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {!isCapacitorApp && (
