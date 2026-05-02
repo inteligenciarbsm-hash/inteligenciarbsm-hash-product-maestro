@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Product Maestro</string>
+    <string name="title_activity_main">Product Maestro</string>
+    <string name="package_name">br.com.rbsm.productmaestro</string>
+    <string name="custom_url_scheme">br.com.rbsm.productmaestro</string>
+</resources>

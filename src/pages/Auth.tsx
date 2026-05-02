@@ -69,6 +69,12 @@ const Auth = () => {
     // Em sucesso, o navegador redireciona pro Google e volta direto pra /produtos.
   };
 
+  // O Google bloqueia OAuth dentro de WebView de app mobile.
+  // Esconder o botão quando rodando dentro do Capacitor.
+  const isCapacitorApp =
+    typeof window !== "undefined" &&
+    !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -80,25 +86,29 @@ const Auth = () => {
           <CardDescription>Entre ou crie sua conta para gerenciar seus produtos.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogle}
-            disabled={googleLoading || submitting}
-          >
-            <GoogleIcon />
-            <span className="ml-2">{googleLoading ? "Redirecionando..." : "Continuar com Google"}</span>
-          </Button>
+          {!isCapacitorApp && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGoogle}
+                disabled={googleLoading || submitting}
+              >
+                <GoogleIcon />
+                <span className="ml-2">{googleLoading ? "Redirecionando..." : "Continuar com Google"}</span>
+              </Button>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">ou</span>
-            </div>
-          </div>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">ou</span>
+                </div>
+              </div>
+            </>
+          )}
 
           <Tabs defaultValue="signin">
             <TabsList className="grid grid-cols-2 w-full">
