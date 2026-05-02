@@ -154,7 +154,7 @@ const Products = () => {
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-primary" />
             <h1 className="text-xl font-semibold">Cadastro de Produtos</h1>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">v1.0</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">v1.1</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground hidden md:inline">{user?.email}</span>
