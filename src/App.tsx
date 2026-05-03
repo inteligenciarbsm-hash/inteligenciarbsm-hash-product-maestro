@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import NotFound from "./pages/NotFound.tsx";
 import Products from "./pages/Products.tsx";
 import Tickets from "./pages/Tickets.tsx";
+import Pesquisas from "./pages/Pesquisas.tsx";
 import Auth from "./pages/Auth.tsx";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Tickets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pesquisas"
+              element={
+                <ProtectedRoute>
+                  <Pesquisas />
                 </ProtectedRoute>
               }
             />

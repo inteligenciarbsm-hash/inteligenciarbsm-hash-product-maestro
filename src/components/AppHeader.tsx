@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 
-const APP_VERSION = "v1.2";
+const APP_VERSION = "v1.3";
 
 const RBMark = () => (
   <Link to="/produtos" className="flex items-center gap-2 group">
@@ -38,6 +38,9 @@ const AppHeader = () => {
           </NavLink>
           <NavLink to="/chamados" className={navTabClass} activeClassName={navTabActiveClass}>
             Chamados
+          </NavLink>
+          <NavLink to="/pesquisas" className={navTabClass} activeClassName={navTabActiveClass}>
+            Pesquisas
           </NavLink>
         </nav>
 
