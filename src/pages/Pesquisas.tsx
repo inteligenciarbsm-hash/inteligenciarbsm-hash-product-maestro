@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Calendar, FileSpreadsheet, MessageSquareQuote, RefreshCw, Star, TrendingUp, Award, AlertTriangle,
+  Calendar, FileSpreadsheet, MessageSquareQuote, RefreshCw, Star, TrendingUp, Award, AlertTriangle, Info,
 } from "lucide-react";
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
@@ -406,8 +406,10 @@ const StackedRatingBar = ({
   histogram, total,
 }: { histogram: { value: number; count: number }[]; total: number }) => {
   if (total === 0 || histogram.length === 0) return null;
+  const minV = histogram[0]?.value;
+  const maxV = histogram[histogram.length - 1]?.value;
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex h-3 rounded-full overflow-hidden border border-border/40">
         {histogram.map((bin, i) => {
           const pct = (bin.count / total) * 100;
@@ -417,7 +419,7 @@ const StackedRatingBar = ({
             <div
               key={bin.value}
               style={{ width: `${pct}%`, backgroundColor: RATING_COLORS[colorIdx] }}
-              title={`${bin.value}: ${bin.count} (${pct.toFixed(0)}%)`}
+              title={`Nota ${bin.value}: ${bin.count} resposta(s) (${pct.toFixed(0)}%)`}
             />
           );
         })}
@@ -429,6 +431,10 @@ const StackedRatingBar = ({
             <div>{bin.count}</div>
           </div>
         ))}
+      </div>
+      <div className="flex justify-between text-[10px] text-muted-foreground/80 italic">
+        <span>← {minV} pior</span>
+        <span>melhor {maxV} →</span>
       </div>
     </div>
   );
@@ -643,34 +649,52 @@ const ComparisonSection = ({
           ))}
         </div>
 
-        {/* Radar chart */}
-        <div className="h-96 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={radarData} outerRadius="75%">
-              <PolarGrid />
-              <PolarAngleAxis dataKey="question" tick={{ fontSize: 10 }} />
-              <PolarRadiusAxis domain={[0, maxScale]} tick={{ fontSize: 10 }} />
-              {subs.map((sub, i) => (
-                <Radar
-                  key={sub}
-                  name={sub}
-                  dataKey={sub}
-                  stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]}
-                  fill={COMPARE_COLORS[i % COMPARE_COLORS.length]}
-                  fillOpacity={0.25}
+        {/* Bloco do radar com explicação */}
+        <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+          <div className="flex items-start gap-2 text-sm">
+            <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="text-muted-foreground space-y-1">
+              <p>
+                <strong className="text-foreground">Como ler este gráfico:</strong> cada
+                <strong className="text-foreground"> ponta</strong> é uma pergunta da pesquisa.
+                Quanto <strong className="text-foreground">mais longe do centro</strong>, melhor a nota
+                média naquela pergunta (centro = 0, borda = {maxScale}).
+              </p>
+              <p>
+                Cada <strong className="text-foreground">cor</strong> representa um produto. Quanto
+                maior a área pintada, melhor o desempenho geral. Quando uma cor "afunda" em alguma
+                ponta, é uma fraqueza naquele atributo específico.
+              </p>
+            </div>
+          </div>
+          <div className="h-96 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData} outerRadius="75%">
+                <PolarGrid />
+                <PolarAngleAxis dataKey="question" tick={{ fontSize: 10 }} />
+                <PolarRadiusAxis domain={[0, maxScale]} tick={{ fontSize: 10 }} />
+                {subs.map((sub, i) => (
+                  <Radar
+                    key={sub}
+                    name={sub}
+                    dataKey={sub}
+                    stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]}
+                    fill={COMPARE_COLORS[i % COMPARE_COLORS.length]}
+                    fillOpacity={0.25}
+                  />
+                ))}
+                <Legend />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: "1px solid hsl(var(--border))",
+                    background: "hsl(var(--card))",
+                    fontSize: 12,
+                  }}
                 />
-              ))}
-              <Legend />
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid hsl(var(--border))",
-                  background: "hsl(var(--card))",
-                  fontSize: 12,
-                }}
-              />
-            </RadarChart>
-          </ResponsiveContainer>
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Destaques: melhor / pior por produto */}
