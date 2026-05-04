@@ -169,6 +169,34 @@ export const textStats = (
   return { count: nonEmpty.length, recent: nonEmpty.slice(0, limit) };
 };
 
+/**
+ * Calcula a média numérica de uma coluna para cada grupo (sub-pesquisa).
+ * Retorna `null` para grupos sem dados numéricos.
+ */
+export const numericAvgByGroup = (
+  rows: SheetRow[],
+  column: string,
+  groupColumn: string
+): Record<string, number | null> => {
+  const sums: Record<string, { sum: number; count: number }> = {};
+  rows.forEach((r) => {
+    const group = String(r[groupColumn] ?? "").trim();
+    if (!group) return;
+    const raw = r[column];
+    if (raw == null || raw === "") return;
+    const n = typeof raw === "number" ? raw : Number(String(raw).trim().replace(",", "."));
+    if (isNaN(n)) return;
+    sums[group] = sums[group] ?? { sum: 0, count: 0 };
+    sums[group].sum += n;
+    sums[group].count += 1;
+  });
+  const out: Record<string, number | null> = {};
+  Object.entries(sums).forEach(([g, { sum, count }]) => {
+    out[g] = count > 0 ? sum / count : null;
+  });
+  return out;
+};
+
 /** Heurística: encontra a coluna que parece ser uma "sub-pesquisa" / produto. */
 export const findSubSurveyColumn = (
   headers: string[],

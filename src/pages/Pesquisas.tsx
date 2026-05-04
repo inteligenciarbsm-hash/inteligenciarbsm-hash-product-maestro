@@ -1,41 +1,69 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, Calendar, FileSpreadsheet, MessageSquareQuote, RefreshCw, Star, TrendingUp } from "lucide-react";
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar,
+  Calendar, FileSpreadsheet, MessageSquareQuote, RefreshCw, Star, TrendingUp, Award, AlertTriangle,
+} from "lucide-react";
+import {
+  ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
+  Legend,
 } from "recharts";
 import AppHeader from "@/components/AppHeader";
-import { isSheetsConfigured, useSheetsList, useSheetData, type SheetRow } from "@/hooks/useSheets";
+import { isSheetsConfigured, useSheetsList, useSheetData, type SheetRow, type SheetCell } from "@/hooks/useSheets";
 import {
-  detectColumnKind, isDateColumn, toDate, numericStats, categoricalStats, textStats,
-  findSubSurveyColumn,
+  detectColumnKind, isDateColumn, numericStats, categoricalStats, textStats,
+  findSubSurveyColumn, numericAvgByGroup, type ColumnKind,
 } from "@/lib/sheetAnalysis";
 
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
+// Paleta semântica pra notas 1..N (vermelho → verde).
+// Para qualquer escala, mapeamos o índice no array proporcionalmente.
+const RATING_COLORS = [
+  "hsl(0, 75%, 55%)",   // 1 — vermelho
+  "hsl(20, 85%, 55%)",  // 2 — laranja
+  "hsl(45, 90%, 55%)",  // 3 — amarelo
+  "hsl(85, 60%, 50%)",  // 4 — verde-limão
+  "hsl(140, 60%, 45%)", // 5 — verde
+];
+
+// Cores estáveis pra produtos comparados no radar
+const COMPARE_COLORS = [
+  "hsl(218, 70%, 45%)",  // navy (primary)
+  "hsl(15, 75%, 55%)",   // coral
+  "hsl(165, 55%, 40%)",  // teal
+  "hsl(280, 55%, 55%)",  // purple
+  "hsl(35, 85%, 55%)",   // amber
+];
 
 const fmtDateTime = (v: unknown) => {
   if (v == null || v === "") return "—";
   const d = new Date(String(v));
   if (isNaN(d.getTime())) return String(v);
-  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
 };
+
+const truncate = (s: string, n = 30) => (s.length > n ? s.slice(0, n) + "…" : s);
 
 const Pesquisas = () => {
   const configured = isSheetsConfigured();
-  const { data: sheets, isLoading: loadingSheets, error: sheetsError, refetch: refetchSheets, isFetching: fetchingList } = useSheetsList();
+  const {
+    data: sheets, isLoading: loadingSheets, error: sheetsError,
+    refetch: refetchSheets, isFetching: fetchingList,
+  } = useSheetsList();
   const [selected, setSelected] = useState<string | null>(null);
-  const [from, setFrom] = useState<string>("");
-  const [to, setTo] = useState<string>("");
   const [subColumn, setSubColumn] = useState<string | null>(null);
-  const [subValue, setSubValue] = useState<string>("__all__");
+  const [activeSubs, setActiveSubs] = useState<string[]>([]);
 
-  const { data: sheetData, isLoading: loadingData, error: dataError, refetch: refetchData, isFetching: fetchingData } = useSheetData(selected);
+  const {
+    data: sheetData, isLoading: loadingData, error: dataError,
+    refetch: refetchData, isFetching: fetchingData,
+  } = useSheetData(selected);
 
-  // Auto-seleciona primeiro form ao chegar
+  // Auto-seleciona primeiro form com respostas
   useEffect(() => {
     if (!selected && sheets && sheets.length > 0) {
       const first = sheets.find((s) => s.rows > 0) ?? sheets[0];
@@ -43,20 +71,19 @@ const Pesquisas = () => {
     }
   }, [sheets, selected]);
 
-  // Detecta a coluna de data
+  // Detecta coluna de data (pra "última resposta") e sub-pesquisa
   const dateCol = useMemo(() => {
     if (!sheetData) return null;
     return sheetData.headers.find(isDateColumn) ?? null;
   }, [sheetData]);
 
-  // Detecta automaticamente a sub-pesquisa
   useEffect(() => {
     if (!sheetData) return;
-    const auto = findSubSurveyColumn(sheetData.headers, sheetData.rows);
-    setSubColumn(auto);
-    setSubValue("__all__");
+    setSubColumn(findSubSurveyColumn(sheetData.headers, sheetData.rows));
+    setActiveSubs([]);
   }, [sheetData]);
 
+  // Lista de valores possíveis da sub-pesquisa
   const subValues = useMemo(() => {
     if (!sheetData || !subColumn) return [];
     const set = new Set<string>();
@@ -67,69 +94,27 @@ const Pesquisas = () => {
     return Array.from(set).sort();
   }, [sheetData, subColumn]);
 
-  // Aplica filtros: data + sub
+  // Linhas filtradas pelos botões selecionados (vazio = todas)
   const filteredRows = useMemo(() => {
     if (!sheetData) return [];
-    let rows = sheetData.rows;
+    if (!subColumn || activeSubs.length === 0) return sheetData.rows;
+    const set = new Set(activeSubs);
+    return sheetData.rows.filter((r) => set.has(String(r[subColumn] ?? "").trim()));
+  }, [sheetData, subColumn, activeSubs]);
 
-    if (dateCol) {
-      const fromTs = from ? new Date(from).getTime() : null;
-      const toTs = to ? new Date(to + "T23:59:59").getTime() : null;
-      rows = rows.filter((r) => {
-        const v = r[dateCol];
-        if (v == null || v === "") return !fromTs && !toTs;
-        const t = new Date(String(v)).getTime();
-        if (isNaN(t)) return false;
-        if (fromTs && t < fromTs) return false;
-        if (toTs && t > toTs) return false;
-        return true;
-      });
-    }
-
-    if (subColumn && subValue !== "__all__") {
-      rows = rows.filter((r) => String(r[subColumn] ?? "").trim() === subValue);
-    }
-
-    return rows;
-  }, [sheetData, dateCol, from, to, subColumn, subValue]);
-
-  // KPIs gerais
-  const kpis = useMemo(() => {
-    let last7 = 0;
-    let lastDate: Date | null = null;
-    if (dateCol) {
-      const sevenAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      filteredRows.forEach((r) => {
-        const t = new Date(String(r[dateCol])).getTime();
-        if (isNaN(t)) return;
-        if (t >= sevenAgo) last7++;
-        if (!lastDate || t > lastDate.getTime()) lastDate = new Date(t);
-      });
-    }
-    return { total: filteredRows.length, last7, lastDate };
-  }, [filteredRows, dateCol]);
-
-  // Série diária (últimos 30 dias)
-  const dailySeries = useMemo(() => {
-    if (!dateCol) return [];
-    const counts: Record<string, number> = {};
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      counts[ymd(d)] = 0;
-    }
-    filteredRows.forEach((r) => {
-      const t = new Date(String(r[dateCol])).getTime();
-      if (isNaN(t)) return;
-      const key = ymd(new Date(t));
-      if (key in counts) counts[key]++;
+  // Linhas por sub (pra modo comparação)
+  const rowsBySub = useMemo(() => {
+    if (!sheetData || !subColumn || activeSubs.length < 2) return null;
+    const map: Record<string, SheetRow[]> = {};
+    activeSubs.forEach((s) => (map[s] = []));
+    sheetData.rows.forEach((r) => {
+      const k = String(r[subColumn] ?? "").trim();
+      if (k in map) map[k].push(r);
     });
-    return Object.entries(counts).map(([date, count]) => ({ date: date.slice(5), count }));
-  }, [filteredRows, dateCol]);
+    return map;
+  }, [sheetData, subColumn, activeSubs]);
 
-  // Análise inteligente por coluna
+  // Análise de cada coluna (skip date e sub-survey column)
   const columnAnalysis = useMemo(() => {
     if (!sheetData) return [];
     return sheetData.headers
@@ -142,15 +127,26 @@ const Pesquisas = () => {
       .filter((c) => c.kind !== "skip" && c.kind !== "email");
   }, [sheetData, filteredRows, dateCol, subColumn]);
 
-  // KPI hero: média geral das colunas numéricas
+  // KPIs
+  const totalResponses = filteredRows.length;
+  const lastResponseDate = useMemo(() => {
+    if (!dateCol) return null;
+    let max: Date | null = null;
+    filteredRows.forEach((r) => {
+      const t = new Date(String(r[dateCol])).getTime();
+      if (isNaN(t)) return;
+      if (!max || t > max.getTime()) max = new Date(t);
+    });
+    return max;
+  }, [filteredRows, dateCol]);
+
   const heroAvg = useMemo(() => {
     const numericCols = columnAnalysis.filter((c) => c.kind === "number");
     if (numericCols.length === 0) return null;
     const allStats = numericCols.map((c) => numericStats(c.values));
     const totalCount = allStats.reduce((s, x) => s + x.count, 0);
     if (totalCount === 0) return null;
-    const weightedSum = allStats.reduce((s, x) => s + x.avg * x.count, 0);
-    return weightedSum / totalCount;
+    return allStats.reduce((s, x) => s + x.avg * x.count, 0) / totalCount;
   }, [columnAnalysis]);
 
   const lastRows = useMemo(() => {
@@ -177,12 +173,9 @@ const Pesquisas = () => {
                 Pesquisas — configuração pendente
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                A integração com o Google Sheets ainda não foi configurada. Adicione a variável
-                <code className="text-foreground"> VITE_SHEETS_API_URL </code> com a URL pública do Apps Script
-                (terminada em <code>/exec</code>).
-              </p>
+            <CardContent className="text-sm text-muted-foreground">
+              Adicione a variável <code className="text-foreground"> VITE_SHEETS_API_URL </code> com a URL pública do
+              Apps Script (terminada em <code>/exec</code>).
             </CardContent>
           </Card>
         </main>
@@ -199,7 +192,7 @@ const Pesquisas = () => {
           <div>
             <h2 className="text-2xl font-bold">Pesquisas</h2>
             <p className="text-sm text-muted-foreground">
-              Indicadores das respostas dos formulários da marca própria. Atualiza sozinho a cada minuto.
+              Análise sensorial e indicadores das respostas dos formulários. Atualiza sozinho a cada minuto.
             </p>
           </div>
           <button
@@ -227,48 +220,56 @@ const Pesquisas = () => {
                 Erro: {sheetsError instanceof Error ? sheetsError.message : "desconhecido"}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                <div className="space-y-1.5">
+              <>
+                <div className="space-y-1.5 max-w-md">
                   <Label>Formulário</Label>
-                  <Select value={selected ?? ""} onValueChange={(v) => { setSelected(v); }}>
+                  <Select value={selected ?? ""} onValueChange={setSelected}>
                     <SelectTrigger>
                       <SelectValue placeholder="Escolha um formulário" />
                     </SelectTrigger>
                     <SelectContent>
                       {(sheets ?? []).map((s) => (
                         <SelectItem key={s.name} value={s.name}>
-                          {s.formTitle || s.name}{" "}
+                          {s.formTitle || s.name}
                           <span className="text-muted-foreground ml-2">({s.rows})</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="from">De</Label>
-                  <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="to">Até</Label>
-                  <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-                </div>
+
                 {subColumn && subValues.length > 1 && (
-                  <div className="md:col-span-3 space-y-1.5">
-                    <Label>Filtrar por <span className="font-normal text-muted-foreground">"{subColumn}"</span></Label>
-                    <Select value={subValue} onValueChange={setSubValue}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">Todas</SelectItem>
-                        {subValues.map((v) => (
-                          <SelectItem key={v} value={v}>{v}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-1.5">
+                    <Label>
+                      Produtos / pesquisas
+                      <span className="font-normal text-muted-foreground ml-2">
+                        — selecione 1 pra ver detalhe, 2+ pra comparar
+                      </span>
+                    </Label>
+                    <ToggleGroup
+                      type="multiple"
+                      value={activeSubs}
+                      onValueChange={setActiveSubs}
+                      className="flex flex-wrap justify-start gap-1"
+                    >
+                      {subValues.map((v) => (
+                        <ToggleGroupItem
+                          key={v}
+                          value={v}
+                          className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                        >
+                          {v}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                    {activeSubs.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Nenhum filtro ativo — mostrando <strong>todas</strong> as respostas.
+                      </p>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -285,14 +286,13 @@ const Pesquisas = () => {
           <Card><CardContent className="py-12 text-center text-muted-foreground">Nenhuma resposta neste formulário.</CardContent></Card>
         ) : (
           <>
-            {/* KPIs hero */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Respostas no filtro" value={String(kpis.total)} />
-              <KpiCard icon={<Calendar className="h-4 w-4" />} label="Últimos 7 dias" value={String(kpis.last7)} />
+            {/* KPIs principais (3 cards) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Respostas no filtro" value={String(totalResponses)} />
               <KpiCard
                 icon={<Calendar className="h-4 w-4" />}
                 label="Última resposta"
-                value={kpis.lastDate ? fmtDateTime(kpis.lastDate.toISOString()) : "—"}
+                value={lastResponseDate ? fmtDateTime(lastResponseDate.toISOString()) : "—"}
                 small
               />
               <KpiCard
@@ -303,30 +303,12 @@ const Pesquisas = () => {
               />
             </div>
 
-            {/* Série diária */}
-            {dateCol && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <BarChart3 className="h-4 w-4 text-primary" /> Respostas por dia (últimos 30)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pl-2">
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={dailySeries} margin={{ top: 5, right: 16, bottom: 0, left: -16 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                        <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                        <Tooltip
-                          contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
-                        />
-                        <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Comparativo entre produtos */}
+            {rowsBySub && (
+              <ComparisonSection
+                rowsBySub={rowsBySub}
+                headers={(sheetData?.headers ?? []).filter((h) => h !== dateCol && h !== subColumn)}
+              />
             )}
 
             {/* Cards inteligentes por coluna */}
@@ -385,6 +367,8 @@ const Pesquisas = () => {
   );
 };
 
+// ============ Componentes auxiliares ============
+
 const KpiCard = ({
   icon, label, value, small, accent,
 }: { icon: React.ReactNode; label: string; value: string; small?: boolean; accent?: boolean }) => (
@@ -401,12 +385,61 @@ const KpiCard = ({
   </Card>
 );
 
+/** Renderiza estrelas pra notas 1..5. Para outras escalas, retorna null. */
+const RatingStars = ({ avg, max }: { avg: number; max: number }) => {
+  if (max > 5 || max < 1) return null;
+  const filled = Math.round(avg);
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          className={`h-4 w-4 ${i < filled ? "fill-amber-400 text-amber-400" : "text-muted stroke-muted-foreground/40"}`}
+        />
+      ))}
+    </div>
+  );
+};
+
+/** Barra empilhada 100% colorida segundo a distribuição (vermelho → verde). */
+const StackedRatingBar = ({
+  histogram, total,
+}: { histogram: { value: number; count: number }[]; total: number }) => {
+  if (total === 0 || histogram.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <div className="flex h-3 rounded-full overflow-hidden border border-border/40">
+        {histogram.map((bin, i) => {
+          const pct = (bin.count / total) * 100;
+          if (pct === 0) return null;
+          const colorIdx = Math.round((i / Math.max(1, histogram.length - 1)) * (RATING_COLORS.length - 1));
+          return (
+            <div
+              key={bin.value}
+              style={{ width: `${pct}%`, backgroundColor: RATING_COLORS[colorIdx] }}
+              title={`${bin.value}: ${bin.count} (${pct.toFixed(0)}%)`}
+            />
+          );
+        })}
+      </div>
+      <div className="flex justify-between text-[10px] text-muted-foreground">
+        {histogram.map((bin) => (
+          <div key={bin.value} className="flex-1 text-center">
+            <div className="font-medium text-foreground">{bin.value}</div>
+            <div>{bin.count}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const SmartColumnCard = ({
   header, kind, values, rows, dateCol,
 }: {
   header: string;
-  kind: "date" | "number" | "categorical" | "text" | "email" | "skip";
-  values: import("@/hooks/useSheets").SheetCell[];
+  kind: ColumnKind;
+  values: SheetCell[];
   rows: SheetRow[];
   dateCol: string | null;
 }) => {
@@ -423,21 +456,10 @@ const SmartColumnCard = ({
         <CardContent className="space-y-3">
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold text-primary">{stats.avg.toFixed(2)}</span>
-            <span className="text-xs text-muted-foreground">média ({stats.count} respostas)</span>
+            <RatingStars avg={stats.avg} max={stats.max} />
+            <span className="text-xs text-muted-foreground ml-auto">{stats.count} resp.</span>
           </div>
-          <div className="h-28">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.histogram} margin={{ top: 5, right: 5, bottom: 0, left: -28 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="value" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", fontSize: 12 }}
-                />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <StackedRatingBar histogram={stats.histogram} total={stats.count} />
         </CardContent>
       </Card>
     );
@@ -446,7 +468,6 @@ const SmartColumnCard = ({
   if (kind === "categorical") {
     const stats = categoricalStats(values);
     if (stats.count === 0) return null;
-    const max = stats.items[0]?.count ?? 1;
     return (
       <Card>
         <CardHeader className="pb-2">
@@ -457,19 +478,25 @@ const SmartColumnCard = ({
         <CardContent>
           <div className="text-xs text-muted-foreground mb-2">{stats.count} respostas</div>
           <div className="space-y-2">
-            {stats.items.slice(0, 6).map((item) => (
-              <div key={item.value} className="space-y-1">
-                <div className="flex justify-between text-xs gap-2">
-                  <span className="truncate" title={item.value}>{item.value}</span>
-                  <span className="text-muted-foreground whitespace-nowrap">
-                    {item.count} <span className="opacity-70">({item.pct.toFixed(0)}%)</span>
-                  </span>
+            {stats.items.slice(0, 6).map((item, i) => {
+              const colorIdx = Math.round((i / Math.max(1, Math.min(5, stats.items.length - 1))) * (RATING_COLORS.length - 1));
+              return (
+                <div key={item.value} className="space-y-1">
+                  <div className="flex justify-between text-xs gap-2">
+                    <span className="truncate" title={item.value}>{item.value}</span>
+                    <span className="text-muted-foreground whitespace-nowrap font-medium">
+                      {item.count} <span className="opacity-70">({item.pct.toFixed(0)}%)</span>
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${item.pct}%`, backgroundColor: RATING_COLORS[colorIdx] }}
+                    />
+                  </div>
                 </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full bg-primary" style={{ width: `${(item.count / max) * 100}%` }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -509,6 +536,176 @@ const SmartColumnCard = ({
   }
 
   return null;
+};
+
+/** Comparação entre 2+ produtos: radar + médias por produto + destaques */
+const ComparisonSection = ({
+  rowsBySub, headers,
+}: { rowsBySub: Record<string, SheetRow[]>; headers: string[] }) => {
+  const subs = Object.keys(rowsBySub);
+
+  // Encontra colunas numéricas que tenham dados em pelo menos 2 produtos
+  const numericCols = useMemo(() => {
+    return headers.filter((h) => {
+      let hits = 0;
+      for (const sub of subs) {
+        const values = rowsBySub[sub].map((r) => r[h]);
+        const stats = numericStats(values);
+        if (stats.count > 0) hits++;
+        if (hits >= 2) return true;
+      }
+      return false;
+    });
+  }, [headers, rowsBySub, subs]);
+
+  // Dados pro radar: cada ponto = uma pergunta numérica, cada dimensão = um produto
+  const radarData = useMemo(() => {
+    return numericCols.map((col) => {
+      const point: Record<string, string | number> = { question: truncate(col, 28) };
+      subs.forEach((sub) => {
+        const values = rowsBySub[sub].map((r) => r[col]);
+        const stats = numericStats(values);
+        point[sub] = stats.count > 0 ? Number(stats.avg.toFixed(2)) : 0;
+      });
+      return point;
+    });
+  }, [numericCols, rowsBySub, subs]);
+
+  // Médias gerais por produto
+  const subStats = useMemo(() => {
+    return subs.map((sub) => {
+      const stats = numericCols.map((col) => numericStats(rowsBySub[sub].map((r) => r[col])));
+      const totalCount = stats.reduce((s, x) => s + x.count, 0);
+      const weightedSum = stats.reduce((s, x) => s + x.avg * x.count, 0);
+      return {
+        sub,
+        responses: rowsBySub[sub].length,
+        avg: totalCount > 0 ? weightedSum / totalCount : null,
+      };
+    });
+  }, [subs, numericCols, rowsBySub]);
+
+  // Destaques: melhor e pior atributo por produto
+  const highlights = useMemo(() => {
+    return subs.map((sub) => {
+      const perCol = numericCols.map((col) => {
+        const stats = numericStats(rowsBySub[sub].map((r) => r[col]));
+        return { col, avg: stats.avg, count: stats.count };
+      }).filter((x) => x.count > 0);
+      if (perCol.length === 0) return { sub, best: null, worst: null };
+      const sorted = [...perCol].sort((a, b) => b.avg - a.avg);
+      return { sub, best: sorted[0], worst: sorted[sorted.length - 1] };
+    });
+  }, [subs, numericCols, rowsBySub]);
+
+  if (numericCols.length < 2) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Comparação entre {subs.join(" × ")}</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          Não há perguntas numéricas suficientes nesses produtos pra montar um comparativo.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Determina o domínio do radar (1..max das notas)
+  const allValues = radarData.flatMap((p) => subs.map((s) => Number(p[s] ?? 0)));
+  const maxScale = Math.max(5, Math.ceil(Math.max(...allValues) || 5));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          Comparação entre {subs.join(" × ")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Médias por produto */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {subStats.map((s, i) => (
+            <div
+              key={s.sub}
+              className="rounded-lg border p-3 space-y-1"
+              style={{ borderLeftWidth: 4, borderLeftColor: COMPARE_COLORS[i % COMPARE_COLORS.length] }}
+            >
+              <div className="text-xs text-muted-foreground uppercase tracking-wide">{s.sub}</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold">
+                  {s.avg != null ? s.avg.toFixed(2) : "—"}
+                </span>
+                {s.avg != null && <RatingStars avg={s.avg} max={5} />}
+              </div>
+              <div className="text-xs text-muted-foreground">{s.responses} respostas</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Radar chart */}
+        <div className="h-96 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={radarData} outerRadius="75%">
+              <PolarGrid />
+              <PolarAngleAxis dataKey="question" tick={{ fontSize: 10 }} />
+              <PolarRadiusAxis domain={[0, maxScale]} tick={{ fontSize: 10 }} />
+              {subs.map((sub, i) => (
+                <Radar
+                  key={sub}
+                  name={sub}
+                  dataKey={sub}
+                  stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]}
+                  fill={COMPARE_COLORS[i % COMPARE_COLORS.length]}
+                  fillOpacity={0.25}
+                />
+              ))}
+              <Legend />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: 8,
+                  border: "1px solid hsl(var(--border))",
+                  background: "hsl(var(--card))",
+                  fontSize: 12,
+                }}
+              />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Destaques: melhor / pior por produto */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {highlights.map((h, i) => (
+            h.best && h.worst ? (
+              <div
+                key={h.sub}
+                className="rounded-lg border p-3 space-y-2"
+                style={{ borderTopWidth: 3, borderTopColor: COMPARE_COLORS[i % COMPARE_COLORS.length] }}
+              >
+                <div className="text-sm font-medium">{h.sub}</div>
+                <div className="flex items-start gap-2 text-xs">
+                  <Award className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-muted-foreground">Mais bem avaliado</div>
+                    <div className="truncate" title={h.best.col}>{h.best.col}</div>
+                    <div className="font-semibold text-emerald-700">{h.best.avg.toFixed(2)}</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 text-xs">
+                  <AlertTriangle className="h-4 w-4 text-rose-600 mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-muted-foreground">Precisa de atenção</div>
+                    <div className="truncate" title={h.worst.col}>{h.worst.col}</div>
+                    <div className="font-semibold text-rose-700">{h.worst.avg.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            ) : null
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 export default Pesquisas;
