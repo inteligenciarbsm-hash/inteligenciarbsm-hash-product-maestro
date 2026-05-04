@@ -237,7 +237,8 @@ const Pesquisas = () => {
                     <SelectContent>
                       {(sheets ?? []).map((s) => (
                         <SelectItem key={s.name} value={s.name}>
-                          {s.name} <span className="text-muted-foreground ml-2">({s.rows})</span>
+                          {s.formTitle || s.name}{" "}
+                          <span className="text-muted-foreground ml-2">({s.rows})</span>
                         </SelectItem>
                       ))}
                     </SelectContent>

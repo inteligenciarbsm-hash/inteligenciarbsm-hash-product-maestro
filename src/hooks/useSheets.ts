@@ -5,6 +5,8 @@ const API = import.meta.env.VITE_SHEETS_API_URL as string | undefined;
 
 export type SheetSummary = {
   name: string;
+  /** Título do Google Form vinculado, se houver (preenchido pelo Apps Script). */
+  formTitle?: string | null;
   rows: number;
   lastUpdate: string | null;
 };
