@@ -28,6 +28,9 @@ const fetchOrThrow = async <T,>(url: string): Promise<T> => {
   return data as T;
 };
 
+// Auto-refresh em background a cada 60s — pesquisas novas aparecem sozinhas.
+const AUTO_REFRESH_MS = 60_000;
+
 export const useSheetsList = () => {
   return useQuery({
     queryKey: ["sheets-list"],
@@ -37,7 +40,9 @@ export const useSheetsList = () => {
       return data.sheets ?? [];
     },
     enabled: !!API,
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchInterval: AUTO_REFRESH_MS,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -51,6 +56,8 @@ export const useSheetData = (sheetName: string | null) => {
       return fetchOrThrow<SheetData>(url);
     },
     enabled: !!API && !!sheetName,
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchInterval: AUTO_REFRESH_MS,
+    refetchOnWindowFocus: true,
   });
 };
