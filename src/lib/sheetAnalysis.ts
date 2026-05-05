@@ -237,18 +237,28 @@ export const numericAvgByGroup = (
   return out;
 };
 
-/** Heurística: encontra a coluna que parece ser uma "sub-pesquisa" / produto. */
+/**
+ * Heurística: encontra a coluna que parece ser uma "sub-pesquisa" / produto.
+ * Procura padrões fortes (verbo + substantivo) pra evitar falsos positivos
+ * de perguntas que mencionam "produto" no meio do texto.
+ */
 export const findSubSurveyColumn = (
   headers: string[],
   rows: SheetRow[]
 ): string | null => {
-  // Preferência por nomes que mencionam "escolha", "pesquisa", "produto", "categoria"
-  const preferred = headers.find((h) =>
-    /escolha.*pesquisa|qual.*pesquisa|produto|categoria/i.test(h)
-  );
-  if (preferred) return preferred;
+  // 1. Padrões fortes: começa com (ou contém) verbo seletivo + alvo
+  const strongPatterns = [
+    /selecione.*(pesquisa|produto|formul[áa]rio|item)/i,
+    /escolha.*(pesquisa|produto|formul[áa]rio|item)/i,
+    /qual.*(pesquisa|produto|formul[áa]rio|item)/i,
+    /(pesquisa|produto|formul[áa]rio|item).*(selecione|escolha|escolhid)/i,
+  ];
+  for (const pattern of strongPatterns) {
+    const found = headers.find((h) => pattern.test(h));
+    if (found) return found;
+  }
 
-  // Fallback: primeira coluna categórica com 2-8 valores únicos
+  // 2. Fallback: primeira coluna categórica com 2-8 valores únicos
   for (const h of headers) {
     if (isDateColumn(h)) continue;
     const values = rows.map((r) => r[h]);
