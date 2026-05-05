@@ -79,21 +79,8 @@ const Pesquisas = () => {
 
   useEffect(() => {
     if (!sheetData) return;
-    const col = findSubSurveyColumn(sheetData.headers, sheetData.rows);
-    setSubColumn(col);
-    if (col) {
-      // Lista todos os valores únicos da sub-pesquisa
-      const values = new Set<string>();
-      sheetData.rows.forEach((r) => {
-        const v = r[col];
-        if (v != null && v !== "") values.add(String(v).trim());
-      });
-      const valuesArray = Array.from(values).sort();
-      // Pré-seleciona todos quando há 2+ produtos — a comparação aparece automaticamente.
-      setActiveSubs(valuesArray.length >= 2 ? valuesArray : []);
-    } else {
-      setActiveSubs([]);
-    }
+    setSubColumn(findSubSurveyColumn(sheetData.headers, sheetData.rows));
+    setActiveSubs([]);
   }, [sheetData]);
 
   // Lista de valores possíveis da sub-pesquisa
@@ -186,7 +173,7 @@ const Pesquisas = () => {
   const heroAvg = useMemo(() => {
     const numericCols = columnAnalysis.filter((c) => c.kind === "number");
     if (numericCols.length === 0) return null;
-    const allStats = numericCols.map((c) => numericStats(c.values));
+    const allStats = numericCols.map((c) => numericStats(c.values, c.header));
     const totalCount = allStats.reduce((s, x) => s + x.count, 0);
     if (totalCount === 0) return null;
     return allStats.reduce((s, x) => s + x.avg * x.count, 0) / totalCount;
@@ -274,7 +261,7 @@ const Pesquisas = () => {
                     <Label>
                       Produtos / pesquisas
                       <span className="font-normal text-muted-foreground ml-2">
-                        — todos selecionados por padrão (comparação ativa). Desmarque pra focar.
+                        — sem seleção: cada produto aparece isolado. 2+: comparação no radar.
                       </span>
                     </Label>
                     <ToggleGroup
@@ -295,7 +282,7 @@ const Pesquisas = () => {
                     </ToggleGroup>
                     {activeSubs.length === 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Nenhum filtro ativo — mostrando <strong>todas</strong> as respostas juntas.
+                        Mostrando <strong>cada produto isoladamente</strong>. Marque 2+ pra comparar no radar.
                       </p>
                     )}
                     {activeSubs.length === 1 && (
@@ -339,7 +326,7 @@ const Pesquisas = () => {
               />
             </div>
 
-            {/* Comparativo entre produtos */}
+            {/* Comparativo entre produtos (2+ selecionados) */}
             {rowsBySub && (
               <ComparisonSection
                 rowsBySub={rowsBySub}
@@ -347,19 +334,45 @@ const Pesquisas = () => {
               />
             )}
 
-            {/* Cards inteligentes por coluna */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {columnAnalysis.map((col) => (
-                <SmartColumnCard
-                  key={col.header}
-                  header={col.header}
-                  kind={col.kind}
-                  values={col.values}
-                  rows={filteredRows}
-                  dateCol={dateCol}
-                />
-              ))}
-            </div>
+            {/* Modo isolado: nenhum filtro + 2+ produtos disponíveis → uma seção por produto */}
+            {subColumn && activeSubs.length === 0 && subValues.length >= 2 ? (
+              <div className="space-y-6">
+                {subValues.map((sub) => {
+                  const subRows = sheetData.rows.filter(
+                    (r) => String(r[subColumn] ?? "").trim() === sub
+                  );
+                  const cols = (sheetData.headers ?? [])
+                    .filter((h) => h !== dateCol && h !== subColumn)
+                    .map((header) => {
+                      const values = subRows.map((r) => r[header]);
+                      return { header, kind: detectColumnKind(header, values), values };
+                    })
+                    .filter((c) => c.kind === "number" || c.kind === "categorical");
+                  return (
+                    <ProductSection
+                      key={sub}
+                      name={sub}
+                      responses={subRows.length}
+                      columns={cols}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              /* Modo normal: cards inteligentes da seleção atual */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {columnAnalysis.map((col) => (
+                  <SmartColumnCard
+                    key={col.header}
+                    header={col.header}
+                    kind={col.kind}
+                    values={col.values}
+                    rows={filteredRows}
+                    dateCol={dateCol}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* Tabela de comentários */}
             {textColumns.length > 0 && commentRows.length > 0 && (
@@ -420,6 +433,65 @@ const Pesquisas = () => {
 };
 
 // ============ Componentes auxiliares ============
+
+/** Bloco isolado de um produto, com média geral + grid de cards */
+const ProductSection = ({
+  name, responses, columns,
+}: {
+  name: string;
+  responses: number;
+  columns: { header: string; kind: ColumnKind; values: SheetCell[] }[];
+}) => {
+  const numericCols = columns.filter((c) => c.kind === "number");
+  const allStats = numericCols.map((c) => numericStats(c.values, c.header));
+  const totalCount = allStats.reduce((s, x) => s + x.count, 0);
+  const overallAvg =
+    totalCount > 0
+      ? allStats.reduce((s, x) => s + x.avg * x.count, 0) / totalCount
+      : null;
+
+  return (
+    <Card className="border-l-4 border-l-primary">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="text-lg">{name}</CardTitle>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-muted-foreground">
+              {responses} resposta{responses !== 1 ? "s" : ""}
+            </span>
+            {overallAvg != null && (
+              <span className="flex items-center gap-1.5">
+                <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                <span className="font-semibold">{overallAvg.toFixed(2)}</span>
+                <span className="text-muted-foreground text-xs">média</span>
+              </span>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {columns.length === 0 ? (
+          <div className="text-sm text-muted-foreground text-center py-6">
+            Sem perguntas com opções pra exibir.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {columns.map((col) => (
+              <SmartColumnCard
+                key={col.header}
+                header={col.header}
+                kind={col.kind}
+                values={col.values}
+                rows={[]}
+                dateCol={null}
+              />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 const KpiCard = ({
   icon, label, value, small, accent,
@@ -502,7 +574,7 @@ const SmartColumnCard = ({
   dateCol: string | null;
 }) => {
   if (kind === "number") {
-    const stats = numericStats(values);
+    const stats = numericStats(values, header);
     if (stats.count === 0) return null;
     return (
       <Card>
@@ -608,7 +680,7 @@ const ComparisonSection = ({
       let hits = 0;
       for (const sub of subs) {
         const values = rowsBySub[sub].map((r) => r[h]);
-        const stats = numericStats(values);
+        const stats = numericStats(values, h);
         if (stats.count > 0) hits++;
         if (hits >= 2) return true;
       }
@@ -622,7 +694,7 @@ const ComparisonSection = ({
       const point: Record<string, string | number> = { question: truncate(col, 28) };
       subs.forEach((sub) => {
         const values = rowsBySub[sub].map((r) => r[col]);
-        const stats = numericStats(values);
+        const stats = numericStats(values, col);
         point[sub] = stats.count > 0 ? Number(stats.avg.toFixed(2)) : 0;
       });
       return point;
@@ -632,7 +704,9 @@ const ComparisonSection = ({
   // Médias gerais por produto
   const subStats = useMemo(() => {
     return subs.map((sub) => {
-      const stats = numericCols.map((col) => numericStats(rowsBySub[sub].map((r) => r[col])));
+      const stats = numericCols.map((col) =>
+        numericStats(rowsBySub[sub].map((r) => r[col]), col)
+      );
       const totalCount = stats.reduce((s, x) => s + x.count, 0);
       const weightedSum = stats.reduce((s, x) => s + x.avg * x.count, 0);
       return {
@@ -647,7 +721,7 @@ const ComparisonSection = ({
   const highlights = useMemo(() => {
     return subs.map((sub) => {
       const perCol = numericCols.map((col) => {
-        const stats = numericStats(rowsBySub[sub].map((r) => r[col]));
+        const stats = numericStats(rowsBySub[sub].map((r) => r[col]), col);
         return { col, avg: stats.avg, count: stats.count };
       }).filter((x) => x.count > 0);
       if (perCol.length === 0) return { sub, best: null, worst: null };

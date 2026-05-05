@@ -87,7 +87,40 @@ export const detectColumnKind = (header: string, values: SheetCell[]): ColumnKin
   return "text";
 };
 
-export const numericStats = (values: SheetCell[]): NumericStats => {
+/**
+ * Tenta inferir a escala completa de uma pergunta numérica.
+ * Procura padrão "(N ... M)" no header (ex: "(1-5)", "(1 a 5)",
+ * "(1 muito ruim e 5 muito bom)") e usa esses extremos.
+ * Caso contrário, heurística: integers ≤ 5 vira 1-5; ≤ 10 vira 0-10.
+ */
+const detectScale = (
+  header: string | undefined,
+  nums: number[]
+): { min: number; max: number } | null => {
+  if (header) {
+    const inside = header.match(/\(([^)]+)\)/);
+    if (inside) {
+      const numbers = inside[1].match(/\d+/g);
+      if (numbers && numbers.length >= 2) {
+        const lo = Number(numbers[0]);
+        const hi = Number(numbers[numbers.length - 1]);
+        if (!isNaN(lo) && !isNaN(hi) && hi > lo && hi - lo <= 20) {
+          return { min: lo, max: hi };
+        }
+      }
+    }
+  }
+  if (nums.length === 0) return null;
+  const allInt = nums.every((n) => Number.isInteger(n));
+  if (!allInt) return null;
+  const max = Math.max(...nums);
+  const min = Math.min(...nums);
+  if (max <= 5 && min >= 1) return { min: 1, max: 5 };
+  if (max <= 10 && min >= 0) return { min: 0, max: 10 };
+  return null;
+};
+
+export const numericStats = (values: SheetCell[], header?: string): NumericStats => {
   const nums = values.map(tryNumber).filter((n): n is number => n !== null);
   if (nums.length === 0) {
     return { count: 0, avg: 0, min: 0, max: 0, histogram: [] };
@@ -96,13 +129,19 @@ export const numericStats = (values: SheetCell[]): NumericStats => {
   const max = Math.max(...nums);
   const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
 
-  // Decide o tamanho dos bins. Se min/max são inteiros pequenos (<=10),
-  // usa cada inteiro como bin. Senão, 5 bins igualmente espaçados.
-  const integers = nums.every((n) => Number.isInteger(n));
-  const span = max - min;
+  const scale = detectScale(header, nums);
   let bins: { value: number; count: number }[] = [];
 
-  if (integers && span <= 10) {
+  if (scale) {
+    // Sempre exibe todos os pontos da escala, mesmo com count = 0
+    for (let v = scale.min; v <= scale.max; v++) {
+      bins.push({ value: v, count: 0 });
+    }
+    nums.forEach((n) => {
+      const bin = bins.find((b) => b.value === n);
+      if (bin) bin.count++;
+    });
+  } else if (Number.isInteger(min) && Number.isInteger(max) && max - min <= 10) {
     for (let v = Math.floor(min); v <= Math.ceil(max); v++) {
       bins.push({ value: v, count: 0 });
     }
@@ -112,6 +151,7 @@ export const numericStats = (values: SheetCell[]): NumericStats => {
     });
   } else {
     const binCount = 5;
+    const span = max - min;
     const binSize = span === 0 ? 1 : span / binCount;
     for (let i = 0; i < binCount; i++) {
       const center = min + binSize * (i + 0.5);
