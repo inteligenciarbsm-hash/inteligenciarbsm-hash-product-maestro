@@ -79,8 +79,21 @@ const Pesquisas = () => {
 
   useEffect(() => {
     if (!sheetData) return;
-    setSubColumn(findSubSurveyColumn(sheetData.headers, sheetData.rows));
-    setActiveSubs([]);
+    const col = findSubSurveyColumn(sheetData.headers, sheetData.rows);
+    setSubColumn(col);
+    if (col) {
+      // Lista todos os valores únicos da sub-pesquisa
+      const values = new Set<string>();
+      sheetData.rows.forEach((r) => {
+        const v = r[col];
+        if (v != null && v !== "") values.add(String(v).trim());
+      });
+      const valuesArray = Array.from(values).sort();
+      // Pré-seleciona todos quando há 2+ produtos — a comparação aparece automaticamente.
+      setActiveSubs(valuesArray.length >= 2 ? valuesArray : []);
+    } else {
+      setActiveSubs([]);
+    }
   }, [sheetData]);
 
   // Lista de valores possíveis da sub-pesquisa
@@ -261,7 +274,7 @@ const Pesquisas = () => {
                     <Label>
                       Produtos / pesquisas
                       <span className="font-normal text-muted-foreground ml-2">
-                        — selecione 1 pra ver detalhe, 2+ pra comparar
+                        — todos selecionados por padrão (comparação ativa). Desmarque pra focar.
                       </span>
                     </Label>
                     <ToggleGroup
@@ -282,7 +295,12 @@ const Pesquisas = () => {
                     </ToggleGroup>
                     {activeSubs.length === 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Nenhum filtro ativo — mostrando <strong>todas</strong> as respostas.
+                        Nenhum filtro ativo — mostrando <strong>todas</strong> as respostas juntas.
+                      </p>
+                    )}
+                    {activeSubs.length === 1 && (
+                      <p className="text-xs text-muted-foreground">
+                        Drill-down em <strong>{activeSubs[0]}</strong>. Marque mais pra comparar.
                       </p>
                     )}
                   </div>
