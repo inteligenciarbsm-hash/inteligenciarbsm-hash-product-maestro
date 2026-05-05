@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 
-const APP_VERSION = "v1.7";
+const APP_VERSION = "v1.8";
 
 const RBMark = () => (
   <Link to="/produtos" className="flex items-center gap-2 group">

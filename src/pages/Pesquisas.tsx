@@ -115,6 +115,7 @@ const Pesquisas = () => {
   }, [sheetData, subColumn, activeSubs]);
 
   // Análise de cada coluna (skip date e sub-survey column)
+  // Apenas colunas numéricas e categóricas viram cards (texto vai pra tabela de comentários)
   const columnAnalysis = useMemo(() => {
     if (!sheetData) return [];
     return sheetData.headers
@@ -124,8 +125,37 @@ const Pesquisas = () => {
         const kind = detectColumnKind(header, values);
         return { header, kind, values };
       })
-      .filter((c) => c.kind !== "skip" && c.kind !== "email");
+      .filter((c) => c.kind === "number" || c.kind === "categorical");
   }, [sheetData, filteredRows, dateCol, subColumn]);
+
+  // Colunas de texto livre (perguntas dissertativas) — viram tabela de comentários
+  const textColumns = useMemo(() => {
+    if (!sheetData) return [];
+    return sheetData.headers.filter((h) => {
+      if (h === dateCol || h === subColumn) return false;
+      const values = sheetData.rows.map((r) => r[h]);
+      return detectColumnKind(h, values) === "text";
+    });
+  }, [sheetData, dateCol, subColumn]);
+
+  // Linhas que têm pelo menos 1 comentário não vazio, ordenadas por data desc
+  const commentRows = useMemo(() => {
+    if (textColumns.length === 0) return [];
+    const rows = filteredRows.filter((r) =>
+      textColumns.some((c) => {
+        const v = r[c];
+        return v != null && String(v).trim() !== "";
+      })
+    );
+    if (dateCol) {
+      rows.sort((a, b) => {
+        const ta = new Date(String(a[dateCol])).getTime();
+        const tb = new Date(String(b[dateCol])).getTime();
+        return tb - ta;
+      });
+    }
+    return rows;
+  }, [filteredRows, textColumns, dateCol]);
 
   // KPIs
   const totalResponses = filteredRows.length;
@@ -148,18 +178,6 @@ const Pesquisas = () => {
     if (totalCount === 0) return null;
     return allStats.reduce((s, x) => s + x.avg * x.count, 0) / totalCount;
   }, [columnAnalysis]);
-
-  const lastRows = useMemo(() => {
-    const rows = [...filteredRows];
-    if (dateCol) {
-      rows.sort((a, b) => {
-        const ta = new Date(String(a[dateCol])).getTime();
-        const tb = new Date(String(b[dateCol])).getTime();
-        return tb - ta;
-      });
-    }
-    return rows.slice(0, 10);
-  }, [filteredRows, dateCol]);
 
   if (!configured) {
     return (
@@ -325,41 +343,57 @@ const Pesquisas = () => {
               ))}
             </div>
 
-            {/* Últimas respostas */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Últimas {lastRows.length} respostas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {sheetData.headers.slice(0, 6).map((h) => (
-                          <TableHead key={h} className="whitespace-nowrap">{h}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {lastRows.map((row, i) => (
-                        <TableRow key={i}>
-                          {sheetData.headers.slice(0, 6).map((h) => (
-                            <TableCell key={h} className="text-sm max-w-[280px] truncate" title={String(row[h] ?? "")}>
-                              {h === dateCol ? fmtDateTime(row[h]) : String(row[h] ?? "—")}
-                            </TableCell>
+            {/* Tabela de comentários */}
+            {textColumns.length > 0 && commentRows.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <MessageSquareQuote className="h-4 w-4 text-primary" />
+                    Comentários ({commentRows.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {dateCol && <TableHead className="whitespace-nowrap w-[140px]">Data</TableHead>}
+                          {subColumn && <TableHead className="whitespace-nowrap w-[160px]">{subColumn}</TableHead>}
+                          {textColumns.map((c) => (
+                            <TableHead key={c} className="whitespace-nowrap">{c}</TableHead>
                           ))}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                {sheetData.headers.length > 6 && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Mostrando primeiras 6 colunas de {sheetData.headers.length}.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {commentRows.map((row, i) => (
+                          <TableRow key={i}>
+                            {dateCol && (
+                              <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                {fmtDateTime(row[dateCol])}
+                              </TableCell>
+                            )}
+                            {subColumn && (
+                              <TableCell className="text-xs">
+                                {String(row[subColumn] ?? "—")}
+                              </TableCell>
+                            )}
+                            {textColumns.map((c) => {
+                              const v = row[c];
+                              const text = v == null || String(v).trim() === "" ? "—" : String(v);
+                              return (
+                                <TableCell key={c} className="text-sm max-w-md whitespace-pre-wrap align-top">
+                                  {text}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </main>
