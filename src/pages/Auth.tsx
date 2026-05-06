@@ -32,7 +32,7 @@ const Auth = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   if (loading) return null;
-  if (user) return <Navigate to="/produtos" replace />;
+  if (user) return <Navigate to="/pesquisas" replace />;
 
   const handleSubmit = async (mode: "signin" | "signup") => {
     const parsed = credentialsSchema.safeParse({ email, password });
@@ -51,10 +51,12 @@ const Auth = () => {
       return;
     }
     if (mode === "signup") {
-      toast.success("Cadastro criado! Verifique seu e-mail se a confirmação estiver ativa.");
+      toast.success(
+        "Cadastro recebido. Sua conta precisa de aprovação manual antes de acessar — você será notificado."
+      );
     } else {
       toast.success("Bem-vindo!");
-      navigate("/produtos");
+      navigate("/pesquisas");
     }
   };
 
@@ -65,11 +67,9 @@ const Auth = () => {
       setGoogleLoading(false);
       toast.error(error.message);
     }
-    // Em sucesso, o navegador redireciona pro Google e volta direto pra /produtos.
   };
 
   // O Google bloqueia OAuth dentro de WebView de app mobile.
-  // Esconder o botão quando rodando dentro do Capacitor.
   const isCapacitorApp =
     typeof window !== "undefined" &&
     !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
@@ -79,14 +79,12 @@ const Auth = () => {
       <Card className="w-full max-w-md border-border/60 shadow-lg">
         <CardHeader className="text-center space-y-3">
           <div className="flex justify-center">
-            <div className="h-14 w-14 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-md">
-              RB
-            </div>
+            <img src="/zuppa.png" alt="ZUPPA" className="h-16 w-16 rounded-xl object-contain shadow-md" />
           </div>
           <div>
-            <CardTitle className="text-2xl">SAC Rede Brasil</CardTitle>
+            <CardTitle className="text-2xl">ZUPPA — Pesquisas</CardTitle>
             <CardDescription className="mt-1">
-              Atendimento ao consumidor — marca própria
+              Análise sensorial de produtos
             </CardDescription>
           </div>
         </CardHeader>
@@ -136,6 +134,9 @@ const Auth = () => {
             </TabsContent>
 
             <TabsContent value="signup" className="space-y-4 pt-4">
+              <p className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                Após o cadastro sua conta passa por aprovação manual antes de poder acessar o sistema.
+              </p>
               <div className="space-y-1.5">
                 <Label htmlFor="signup-email">E-mail</Label>
                 <Input id="signup-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />

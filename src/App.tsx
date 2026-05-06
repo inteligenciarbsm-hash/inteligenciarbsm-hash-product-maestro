@@ -6,10 +6,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NotFound from "./pages/NotFound.tsx";
-import Products from "./pages/Products.tsx";
-import Tickets from "./pages/Tickets.tsx";
 import Pesquisas from "./pages/Pesquisas.tsx";
+import Comparativo from "./pages/Comparativo.tsx";
 import Auth from "./pages/Auth.tsx";
+import AguardandoAprovacao from "./pages/AguardandoAprovacao.tsx";
+import Aprovar from "./pages/Aprovar.tsx";
 
 const queryClient = new QueryClient();
 
@@ -21,24 +22,10 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<Navigate to="/produtos" replace />} />
+            <Route path="/" element={<Navigate to="/pesquisas" replace />} />
             <Route path="/auth" element={<Auth />} />
-            <Route
-              path="/produtos"
-              element={
-                <ProtectedRoute>
-                  <Products />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chamados"
-              element={
-                <ProtectedRoute>
-                  <Tickets />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/aprovar" element={<Aprovar />} />
+            <Route path="/aguardando-aprovacao" element={<AguardandoAprovacao />} />
             <Route
               path="/pesquisas"
               element={
@@ -47,7 +34,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route
+              path="/comparativo"
+              element={
+                <ProtectedRoute>
+                  <Comparativo />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

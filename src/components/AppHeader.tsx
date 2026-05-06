@@ -4,18 +4,20 @@ import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 
-const APP_VERSION = "v1.11";
+const APP_VERSION = "v1.12";
 
-const RBMark = () => (
-  <Link to="/produtos" className="flex items-center gap-2 group">
-    <div className="h-8 w-8 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-      RB
-    </div>
+const ZuppaMark = () => (
+  <Link to="/pesquisas" className="flex items-center gap-2 group">
+    <img
+      src="/zuppa.png"
+      alt="ZUPPA"
+      className="h-9 w-9 rounded-md object-contain"
+    />
     <div className="leading-tight">
       <div className="text-sm font-semibold text-foreground group-hover:text-primary transition">
-        Rede Brasil
+        ZUPPA
       </div>
-      <div className="text-[10px] text-muted-foreground -mt-0.5">SAC Marca Própria</div>
+      <div className="text-[10px] text-muted-foreground -mt-0.5">Pesquisas</div>
     </div>
   </Link>
 );
@@ -30,17 +32,14 @@ const AppHeader = () => {
   return (
     <header className="border-b bg-card sticky top-0 z-30">
       <div className="container flex items-center gap-6 py-3">
-        <RBMark />
+        <ZuppaMark />
 
         <nav className="flex items-center gap-1">
-          <NavLink to="/produtos" className={navTabClass} activeClassName={navTabActiveClass}>
-            Produtos
-          </NavLink>
-          <NavLink to="/chamados" className={navTabClass} activeClassName={navTabActiveClass}>
-            Chamados
-          </NavLink>
           <NavLink to="/pesquisas" className={navTabClass} activeClassName={navTabActiveClass}>
-            Pesquisas
+            Análise de produto
+          </NavLink>
+          <NavLink to="/comparativo" className={navTabClass} activeClassName={navTabActiveClass}>
+            Comparativo
           </NavLink>
         </nav>
 

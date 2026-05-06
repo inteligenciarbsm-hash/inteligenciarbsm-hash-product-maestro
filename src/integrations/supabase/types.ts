@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      user_profiles: {
+        Row: {
+          id: string
+          email: string
+          approved: boolean
+          approval_token: string
+          created_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          approved?: boolean
+          approval_token?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          approved?: boolean
+          approval_token?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string | null
