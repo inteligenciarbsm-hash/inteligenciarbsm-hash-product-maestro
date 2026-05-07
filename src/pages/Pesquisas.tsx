@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Calendar, FileSpreadsheet, MessageSquareQuote, RefreshCw, Star, TrendingUp,
@@ -11,8 +10,10 @@ import AppHeader from "@/components/AppHeader";
 import { isSheetsConfigured, useSheetsList, useSheetData, type SheetRow, type SheetCell } from "@/hooks/useSheets";
 import {
   detectColumnKind, isDateColumn, numericStats, categoricalStats, textStats,
-  findSubSurveyColumn, numericAvgByGroup, type ColumnKind,
+  findSubSurveyColumn, type ColumnKind,
 } from "@/lib/sheetAnalysis";
+
+const ALL_PRODUCTS = "__all__";
 
 // Paleta semântica pra notas 1..N (vermelho → verde).
 // Para qualquer escala, mapeamos o índice no array proporcionalmente.
@@ -52,7 +53,7 @@ const Pesquisas = () => {
   } = useSheetsList();
   const [selected, setSelected] = useState<string | null>(null);
   const [subColumn, setSubColumn] = useState<string | null>(null);
-  const [activeSubs, setActiveSubs] = useState<string[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<string>(ALL_PRODUCTS);
 
   const {
     data: sheetData, isLoading: loadingData, error: dataError,
@@ -76,7 +77,7 @@ const Pesquisas = () => {
   useEffect(() => {
     if (!sheetData) return;
     setSubColumn(findSubSurveyColumn(sheetData.headers, sheetData.rows));
-    setActiveSubs([]);
+    setSelectedProduct(ALL_PRODUCTS);
   }, [sheetData]);
 
   // Lista de valores possíveis da sub-pesquisa
@@ -90,13 +91,14 @@ const Pesquisas = () => {
     return Array.from(set).sort();
   }, [sheetData, subColumn]);
 
-  // Linhas filtradas pelos botões selecionados (vazio = todas)
+  // Linhas filtradas pelo produto selecionado (ALL_PRODUCTS = todas)
   const filteredRows = useMemo(() => {
     if (!sheetData) return [];
-    if (!subColumn || activeSubs.length === 0) return sheetData.rows;
-    const set = new Set(activeSubs);
-    return sheetData.rows.filter((r) => set.has(String(r[subColumn] ?? "").trim()));
-  }, [sheetData, subColumn, activeSubs]);
+    if (!subColumn || selectedProduct === ALL_PRODUCTS) return sheetData.rows;
+    return sheetData.rows.filter(
+      (r) => String(r[subColumn] ?? "").trim() === selectedProduct
+    );
+  }, [sheetData, subColumn, selectedProduct]);
 
   // Análise de cada coluna (skip date e sub-survey column)
   // Apenas colunas numéricas e categóricas viram cards (texto vai pra tabela de comentários)
@@ -222,8 +224,8 @@ const Pesquisas = () => {
                 Erro: {sheetsError instanceof Error ? sheetsError.message : "desconhecido"}
               </div>
             ) : (
-              <>
-                <div className="space-y-1.5 max-w-md">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
                   <Label>Formulário</Label>
                   <Select value={selected ?? ""} onValueChange={setSelected}>
                     <SelectTrigger>
@@ -242,41 +244,24 @@ const Pesquisas = () => {
 
                 {subColumn && subValues.length > 1 && (
                   <div className="space-y-1.5">
-                    <Label>
-                      Produtos / pesquisas
-                      <span className="font-normal text-muted-foreground ml-2">
-                        — sem seleção: cada produto aparece isolado. 2+: comparação no radar.
-                      </span>
-                    </Label>
-                    <ToggleGroup
-                      type="multiple"
-                      value={activeSubs}
-                      onValueChange={setActiveSubs}
-                      className="flex flex-wrap justify-start gap-1"
-                    >
-                      {subValues.map((v) => (
-                        <ToggleGroupItem
-                          key={v}
-                          value={v}
-                          className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-                        >
-                          {v}
-                        </ToggleGroupItem>
-                      ))}
-                    </ToggleGroup>
-                    {activeSubs.length === 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Mostrando <strong>cada produto isoladamente</strong>. Marque 2+ pra comparar no radar.
-                      </p>
-                    )}
-                    {activeSubs.length === 1 && (
-                      <p className="text-xs text-muted-foreground">
-                        Drill-down em <strong>{activeSubs[0]}</strong>. Marque mais pra comparar.
-                      </p>
-                    )}
+                    <Label>Produto</Label>
+                    <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ALL_PRODUCTS}>Todos (cada um isolado)</SelectItem>
+                        {subValues.map((v) => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Pra comparar produtos lado a lado, vai na aba <strong>Comparativo</strong>.
+                    </p>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -310,8 +295,8 @@ const Pesquisas = () => {
               />
             </div>
 
-            {/* Modo isolado: nenhum filtro + 2+ produtos disponíveis → uma seção por produto */}
-            {subColumn && activeSubs.length === 0 && subValues.length >= 2 ? (
+            {/* Modo isolado: "Todos" selecionado + 2+ produtos disponíveis → uma seção por produto */}
+            {subColumn && selectedProduct === ALL_PRODUCTS && subValues.length >= 2 ? (
               <div className="space-y-6">
                 {subValues.map((sub) => {
                   const subRows = sheetData.rows.filter(
@@ -574,6 +559,9 @@ const SmartColumnCard = ({
   if (kind === "categorical") {
     const stats = categoricalStats(values);
     if (stats.count === 0) return null;
+    // Esconde cards redundantes: se só tem 1 valor único, não há informação útil pra mostrar
+    // (caso típico: coluna que duplica o filtro de produto já aplicado).
+    if (stats.items.length <= 1) return null;
     return (
       <Card>
         <CardHeader className="pb-2">
