@@ -37,12 +37,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp: AuthContextValue["signUp"] = async (email, password) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/produtos` },
+      options: { emailRedirectTo: `${window.location.origin}/pesquisas` },
     });
-    return { error };
+    if (error) return { error };
+
+    // O Supabase (por proteção contra enumeração) retorna sucesso mesmo se o e-mail
+    // já existir. O sinal disso é data.user.identities vir vazio.
+    if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return {
+        error: new Error(
+          "Já existe uma conta com este e-mail. Tente entrar ou recuperar a senha."
+        ),
+      };
+    }
+    return { error: null };
   };
 
   const signInWithGoogle: AuthContextValue["signInWithGoogle"] = async () => {
