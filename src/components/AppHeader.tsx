@@ -4,20 +4,20 @@ import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 
-const APP_VERSION = "v1.17";
+const APP_VERSION = "v1.18";
 
 const ZuppaMark = () => (
   <Link to="/pesquisas" className="flex items-center gap-2 group">
     <img
       src="/zuppa.png"
-      alt="ZUPPA"
+      alt="Marca Própria"
       className="h-9 w-9 rounded-md object-contain"
     />
     <div className="leading-tight">
       <div className="text-sm font-semibold text-foreground group-hover:text-primary transition">
-        ZUPPA
+        Marca Própria
       </div>
-      <div className="text-[10px] text-muted-foreground -mt-0.5">Pesquisas</div>
+      <div className="text-[10px] text-muted-foreground -mt-0.5">Análise Sensorial</div>
     </div>
   </Link>
 );

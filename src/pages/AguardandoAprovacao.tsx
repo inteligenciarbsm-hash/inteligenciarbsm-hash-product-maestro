@@ -11,7 +11,7 @@ const AguardandoAprovacao = () => {
       <Card className="w-full max-w-md border-border/60 shadow-lg">
         <CardHeader className="text-center space-y-3">
           <div className="flex justify-center">
-            <img src="/zuppa.png" alt="ZUPPA" className="h-16 w-16 rounded-xl object-contain shadow-md" />
+            <img src="/zuppa.png" alt="Marca Própria" className="h-16 w-16 rounded-xl object-contain shadow-md" />
           </div>
           <div>
             <CardTitle className="flex items-center justify-center gap-2 text-xl">

@@ -30,6 +30,10 @@ export type TextStats = {
 const DATE_KEYWORDS = /carimbo|timestamp|data.?hora|date.?time|data.?envio/i;
 const EMAIL_KEYWORDS = /e[\s_-]?mail/i;
 const EMAIL_VALUE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Headers que claramente são perguntas dissertativas (texto livre).
+// Quando o nome bate aqui, força "text" mesmo que os valores sejam curtos
+// — evita classificar "gdfgd", "ok" etc. como opções categóricas.
+const TEXT_HINTS = /coment|gostou|por.?que|justifique|opini[ãa]o|sugest|observa|descrev|relata|fale|sinta|escreva|relate|opinou/i;
 
 export const isDateColumn = (header: string) => DATE_KEYWORDS.test(header);
 
@@ -78,6 +82,10 @@ export const detectColumnKind = (header: string, values: SheetCell[]): ColumnKin
 
   const numeric = nonEmpty.map(tryNumber).filter((n): n is number => n !== null);
   if (numeric.length / nonEmpty.length >= 0.8) return "number";
+
+  // Se o nome do header indica pergunta dissertativa, força "text" antes
+  // do heurístico de cardinalidade — comentários curtos não viram categoria.
+  if (TEXT_HINTS.test(header)) return "text";
 
   const uniques = new Set(nonEmpty.map((v) => cleanString(v)));
   const avgLen =

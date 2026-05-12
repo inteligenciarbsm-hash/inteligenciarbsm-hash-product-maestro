@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "br.com.rbsm.productmaestro",
-  appName: "ZUPPA Pesquisas",
+  appName: "Marca Própria",
   webDir: "dist",
   // Carrega o app direto do deploy Vercel.
   // Cada git push -> atualização instantânea no APK, sem reinstalar.

@@ -79,12 +79,12 @@ const Auth = () => {
       <Card className="w-full max-w-md border-border/60 shadow-lg">
         <CardHeader className="text-center space-y-3">
           <div className="flex justify-center">
-            <img src="/zuppa.png" alt="ZUPPA" className="h-16 w-16 rounded-xl object-contain shadow-md" />
+            <img src="/zuppa.png" alt="Marca Própria" className="h-16 w-16 rounded-xl object-contain shadow-md" />
           </div>
           <div>
-            <CardTitle className="text-2xl">ZUPPA — Pesquisas</CardTitle>
+            <CardTitle className="text-2xl">Marca Própria</CardTitle>
             <CardDescription className="mt-1">
-              Análise sensorial de produtos
+              Análise Sensorial
             </CardDescription>
           </div>
         </CardHeader>
