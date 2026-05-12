@@ -210,6 +210,58 @@ export const textStats = (
 };
 
 /**
+ * Remove código numérico de blindagem do nome da coluna.
+ * Em pesquisas sensoriais cegas, cada amostra recebe um código (710, 456, etc.),
+ * e as colunas viram tipo "710 - Como avalia a COR (1-5)". O comparativo precisa
+ * ignorar esse prefixo pra agrupar perguntas equivalentes entre produtos.
+ *
+ * Exemplos:
+ *   "710 - Como avalia COR"        → "Como avalia COR"
+ *   "456 - SABOR (1-5)"            → "SABOR (1-5)"
+ *   "Pergunta sem código"          → "Pergunta sem código" (inalterado)
+ */
+export const stripCodePrefix = (header: string): string =>
+  header.replace(/^\s*\d+\s*-\s*/, "").trim();
+
+/**
+ * Agrupa colunas por texto da pergunta (sem código de blindagem).
+ * Retorna `{ "Como avalia COR": ["710 - Como avalia COR", "456 - Como avalia COR"] }`.
+ */
+export const groupColumnsByQuestion = (
+  headers: string[]
+): Record<string, string[]> => {
+  const groups: Record<string, string[]> = {};
+  headers.forEach((h) => {
+    const norm = stripCodePrefix(h);
+    if (!groups[norm]) groups[norm] = [];
+    groups[norm].push(h);
+  });
+  return groups;
+};
+
+/**
+ * Coleta valores não-vazios de um conjunto de linhas, olhando em TODAS as colunas
+ * sinônimas (que representam a mesma pergunta em códigos diferentes). Usado pra
+ * agregar respostas de uma pergunta normalizada em pesquisas com prefixo de código.
+ */
+export const collectValuesAcrossColumns = (
+  rows: SheetRow[],
+  cols: string[]
+): SheetCell[] => {
+  const out: SheetCell[] = [];
+  rows.forEach((row) => {
+    for (const c of cols) {
+      const v = row[c];
+      if (v != null && v !== "") {
+        out.push(v);
+        break; // 1 valor por linha — o que estiver preenchido
+      }
+    }
+  });
+  return out;
+};
+
+/**
  * Calcula a média numérica de uma coluna para cada grupo (sub-pesquisa).
  * Retorna `null` para grupos sem dados numéricos.
  */

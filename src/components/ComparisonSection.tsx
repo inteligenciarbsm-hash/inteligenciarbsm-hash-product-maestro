@@ -6,7 +6,9 @@ import {
 } from "recharts";
 import { Award, AlertTriangle, Info, Star } from "lucide-react";
 import type { SheetRow } from "@/hooks/useSheets";
-import { numericStats } from "@/lib/sheetAnalysis";
+import {
+  numericStats, groupColumnsByQuestion, collectValuesAcrossColumns,
+} from "@/lib/sheetAnalysis";
 
 // Cores estáveis pra produtos comparados no radar
 const COMPARE_COLORS = [
@@ -40,38 +42,45 @@ export const ComparisonSection = ({
 }: { rowsBySub: Record<string, SheetRow[]>; headers: string[] }) => {
   const subs = Object.keys(rowsBySub);
 
-  // Encontra colunas numéricas que tenham dados em pelo menos 2 produtos
-  const numericCols = useMemo(() => {
-    return headers.filter((h) => {
-      let hits = 0;
+  // Agrupa colunas por pergunta normalizada (ignora prefixo de código tipo "710 - ").
+  // Em pesquisas sensoriais cegas, cada produto tem suas próprias colunas com
+  // prefixo de blindagem; agrupando por sufixo conseguimos comparar a mesma
+  // pergunta entre produtos diferentes.
+  const questionGroups = useMemo(() => groupColumnsByQuestion(headers), [headers]);
+
+  // Perguntas numéricas que tenham dados em pelo menos 2 produtos
+  // (somando valores das colunas-sinônimo)
+  const numericQuestions = useMemo(() => {
+    return Object.entries(questionGroups).filter(([question, cols]) => {
+      let productsWithData = 0;
       for (const sub of subs) {
-        const values = rowsBySub[sub].map((r) => r[h]);
-        const stats = numericStats(values, h);
-        if (stats.count > 0) hits++;
-        if (hits >= 2) return true;
+        const values = collectValuesAcrossColumns(rowsBySub[sub], cols);
+        const stats = numericStats(values, question);
+        if (stats.count > 0) productsWithData++;
+        if (productsWithData >= 2) return true;
       }
       return false;
     });
-  }, [headers, rowsBySub, subs]);
+  }, [questionGroups, rowsBySub, subs]);
 
   // Dados pro radar
   const radarData = useMemo(() => {
-    return numericCols.map((col) => {
-      const point: Record<string, string | number> = { question: truncate(col, 28) };
+    return numericQuestions.map(([question, cols]) => {
+      const point: Record<string, string | number> = { question: truncate(question, 28) };
       subs.forEach((sub) => {
-        const values = rowsBySub[sub].map((r) => r[col]);
-        const stats = numericStats(values, col);
+        const values = collectValuesAcrossColumns(rowsBySub[sub], cols);
+        const stats = numericStats(values, question);
         point[sub] = stats.count > 0 ? Number(stats.avg.toFixed(2)) : 0;
       });
       return point;
     });
-  }, [numericCols, rowsBySub, subs]);
+  }, [numericQuestions, rowsBySub, subs]);
 
   // Médias gerais por produto
   const subStats = useMemo(() => {
     return subs.map((sub) => {
-      const stats = numericCols.map((col) =>
-        numericStats(rowsBySub[sub].map((r) => r[col]), col)
+      const stats = numericQuestions.map(([question, cols]) =>
+        numericStats(collectValuesAcrossColumns(rowsBySub[sub], cols), question)
       );
       const totalCount = stats.reduce((s, x) => s + x.count, 0);
       const weightedSum = stats.reduce((s, x) => s + x.avg * x.count, 0);
@@ -81,22 +90,22 @@ export const ComparisonSection = ({
         avg: totalCount > 0 ? weightedSum / totalCount : null,
       };
     });
-  }, [subs, numericCols, rowsBySub]);
+  }, [subs, numericQuestions, rowsBySub]);
 
   // Destaques: melhor e pior atributo por produto
   const highlights = useMemo(() => {
     return subs.map((sub) => {
-      const perCol = numericCols.map((col) => {
-        const stats = numericStats(rowsBySub[sub].map((r) => r[col]), col);
-        return { col, avg: stats.avg, count: stats.count };
+      const perCol = numericQuestions.map(([question, cols]) => {
+        const stats = numericStats(collectValuesAcrossColumns(rowsBySub[sub], cols), question);
+        return { col: question, avg: stats.avg, count: stats.count };
       }).filter((x) => x.count > 0);
       if (perCol.length === 0) return { sub, best: null, worst: null };
       const sorted = [...perCol].sort((a, b) => b.avg - a.avg);
       return { sub, best: sorted[0], worst: sorted[sorted.length - 1] };
     });
-  }, [subs, numericCols, rowsBySub]);
+  }, [subs, numericQuestions, rowsBySub]);
 
-  if (numericCols.length < 2) {
+  if (numericQuestions.length < 2) {
     return (
       <Card>
         <CardHeader>
