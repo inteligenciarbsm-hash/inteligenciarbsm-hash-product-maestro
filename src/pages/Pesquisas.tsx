@@ -1,10 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Calendar, FileSpreadsheet, MessageSquareQuote, RefreshCw, Star, TrendingUp,
+  ShoppingCart, AlertTriangle, Search, X,
 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { isSheetsConfigured, useSheetsList, useSheetData, type SheetRow, type SheetCell } from "@/hooks/useSheets";
@@ -181,6 +183,24 @@ const Pesquisas = () => {
     return allStats.reduce((s, x) => s + x.avg * x.count, 0) / totalCount;
   }, [columnAnalysis]);
 
+  // KPI Intenção de compra: detecta colunas numéricas com nome relacionado
+  // a compra/recomendação. Em pesquisa sensorial é métrica-chave pra decidir
+  // lançamento. Combina valores de todas as colunas-sinônimo (ex: "710 -
+  // probabilidade de comprar" e "456 - probabilidade de comprar") usando
+  // collectValuesAcrossColumns pra agregar com a mesma técnica do radar.
+  const purchaseIntent = useMemo(() => {
+    const purchaseCols = columnAnalysis.filter(
+      (c) => c.kind === "number" && /comprar|compraria|recomenda|probabilidade/i.test(c.header)
+    );
+    if (purchaseCols.length === 0) return null;
+    const allValues = purchaseCols.flatMap((c) => c.values);
+    const stats = numericStats(allValues, purchaseCols[0].header);
+    return stats.count > 0 ? { avg: stats.avg, count: stats.count, max: stats.max } : null;
+  }, [columnAnalysis]);
+
+  // Busca dentro dos comentários
+  const [commentSearch, setCommentSearch] = useState("");
+
   if (!configured) {
     return (
       <div className="min-h-screen bg-background">
@@ -294,9 +314,9 @@ const Pesquisas = () => {
           <Card><CardContent className="py-12 text-center text-muted-foreground">Nenhuma resposta neste formulário.</CardContent></Card>
         ) : (
           <>
-            {/* KPIs principais (3 cards) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Respostas no filtro" value={String(totalResponses)} />
+            {/* KPIs principais */}
+            <div className={`grid grid-cols-1 ${purchaseIntent ? "md:grid-cols-4" : "md:grid-cols-3"} gap-4`}>
+              <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Avaliações" value={String(totalResponses)} />
               <KpiCard
                 icon={<Calendar className="h-4 w-4" />}
                 label="Última resposta"
@@ -309,6 +329,14 @@ const Pesquisas = () => {
                 value={heroAvg != null ? heroAvg.toFixed(2) : "—"}
                 accent
               />
+              {purchaseIntent && (
+                <KpiCard
+                  icon={<ShoppingCart className="h-4 w-4" />}
+                  label="Intenção de compra"
+                  value={`${purchaseIntent.avg.toFixed(2)} / ${purchaseIntent.max}`}
+                  accent
+                />
+              )}
             </div>
 
             {/* Modo isolado: "Todos" selecionado + 2+ produtos disponíveis → uma seção por produto */}
@@ -351,14 +379,43 @@ const Pesquisas = () => {
               </div>
             )}
 
-            {/* Tabela de comentários */}
-            {textColumns.length > 0 && commentRows.length > 0 && (
+            {/* Tabela de comentários (com busca) */}
+            {textColumns.length > 0 && commentRows.length > 0 && (() => {
+              const search = commentSearch.trim().toLowerCase();
+              const visibleRows = search
+                ? commentRows.filter((r) =>
+                    textColumns.some((c) => String(r[c] ?? "").toLowerCase().includes(search))
+                  )
+                : commentRows;
+              return (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <MessageSquareQuote className="h-4 w-4 text-primary" />
-                    Comentários ({commentRows.length})
-                  </CardTitle>
+                <CardHeader className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <MessageSquareQuote className="h-4 w-4 text-primary" />
+                      Comentários ({visibleRows.length}{search && commentRows.length !== visibleRows.length ? ` de ${commentRows.length}` : ""})
+                    </CardTitle>
+                    <div className="relative w-full sm:w-64">
+                      <Search className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Buscar nos comentários..."
+                        value={commentSearch}
+                        onChange={(e) => setCommentSearch(e.target.value)}
+                        className="pl-8 pr-8 h-9"
+                      />
+                      {commentSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setCommentSearch("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          aria-label="Limpar busca"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -373,7 +430,16 @@ const Pesquisas = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {commentRows.map((row, i) => (
+                        {visibleRows.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={(dateCol ? 1 : 0) + (subColumn ? 1 : 0) + textColumns.length}
+                              className="text-center text-sm text-muted-foreground py-6"
+                            >
+                              Nenhum comentário com "{commentSearch}".
+                            </TableCell>
+                          </TableRow>
+                        ) : visibleRows.map((row, i) => (
                           <TableRow key={i}>
                             {dateCol && (
                               <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
@@ -401,7 +467,8 @@ const Pesquisas = () => {
                   </div>
                 </CardContent>
               </Card>
-            )}
+              );
+            })()}
           </>
         )}
       </main>
@@ -553,8 +620,9 @@ const SmartColumnCard = ({
   if (kind === "number") {
     const stats = numericStats(values, header);
     if (stats.count === 0) return null;
+    const lowSample = stats.count < 3;
     return (
-      <Card>
+      <Card className={lowSample ? "border-amber-300/60" : undefined}>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground line-clamp-2" title={header}>
             {header}
@@ -567,6 +635,12 @@ const SmartColumnCard = ({
             <span className="text-xs text-muted-foreground ml-auto">{stats.count} resp.</span>
           </div>
           <StackedRatingBar histogram={stats.histogram} total={stats.count} />
+          {lowSample && (
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              <span>Amostra pequena — interprete com cautela</span>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
