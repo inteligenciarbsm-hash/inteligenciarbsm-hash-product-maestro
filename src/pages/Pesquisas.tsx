@@ -114,15 +114,24 @@ const Pesquisas = () => {
       .filter((c) => c.kind === "number" || c.kind === "categorical");
   }, [sheetData, filteredRows, dateCol, subColumn]);
 
-  // Colunas de texto livre (perguntas dissertativas) — viram tabela de comentários
+  // Colunas de texto livre (perguntas dissertativas) — viram tabela de comentários.
+  // Detecta o tipo olhando o dataset inteiro (kind correto), mas só mostra
+  // colunas que tenham ALGUM valor não-vazio dentro do filtro atual
+  // (evita colunas com prefixo "456-" aparecerem todas como "—" quando filtrado em PAÇOCA 1).
   const textColumns = useMemo(() => {
     if (!sheetData) return [];
-    return sheetData.headers.filter((h) => {
+    const allTextCols = sheetData.headers.filter((h) => {
       if (h === dateCol || h === subColumn) return false;
       const values = sheetData.rows.map((r) => r[h]);
       return detectColumnKind(h, values) === "text";
     });
-  }, [sheetData, dateCol, subColumn]);
+    return allTextCols.filter((c) =>
+      filteredRows.some((r) => {
+        const v = r[c];
+        return v != null && String(v).trim() !== "";
+      })
+    );
+  }, [sheetData, filteredRows, dateCol, subColumn]);
 
   // Linhas que têm pelo menos 1 comentário não vazio, ordenadas por data desc
   const commentRows = useMemo(() => {
