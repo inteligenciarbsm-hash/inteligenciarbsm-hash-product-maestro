@@ -100,11 +100,18 @@ const Pesquisas = () => {
     );
   }, [sheetData, subColumn, selectedProduct]);
 
+  // Headers únicos (planilha pode ter colunas duplicadas se o admin do form
+  // adicionou a mesma pergunta duas vezes sem querer).
+  const uniqueHeaders = useMemo(() => {
+    if (!sheetData) return [];
+    return Array.from(new Set(sheetData.headers));
+  }, [sheetData]);
+
   // Análise de cada coluna (skip date e sub-survey column)
   // Apenas colunas numéricas e categóricas viram cards (texto vai pra tabela de comentários)
   const columnAnalysis = useMemo(() => {
     if (!sheetData) return [];
-    return sheetData.headers
+    return uniqueHeaders
       .filter((h) => h !== dateCol && h !== subColumn)
       .map((header) => {
         const values = filteredRows.map((r) => r[header]);
@@ -112,7 +119,7 @@ const Pesquisas = () => {
         return { header, kind, values };
       })
       .filter((c) => c.kind === "number" || c.kind === "categorical");
-  }, [sheetData, filteredRows, dateCol, subColumn]);
+  }, [sheetData, uniqueHeaders, filteredRows, dateCol, subColumn]);
 
   // Colunas de texto livre (perguntas dissertativas) — viram tabela de comentários.
   // Detecta o tipo olhando o dataset inteiro (kind correto), mas só mostra
@@ -120,7 +127,7 @@ const Pesquisas = () => {
   // (evita colunas com prefixo "456-" aparecerem todas como "—" quando filtrado em PAÇOCA 1).
   const textColumns = useMemo(() => {
     if (!sheetData) return [];
-    const allTextCols = sheetData.headers.filter((h) => {
+    const allTextCols = uniqueHeaders.filter((h) => {
       if (h === dateCol || h === subColumn) return false;
       const values = sheetData.rows.map((r) => r[h]);
       return detectColumnKind(h, values) === "text";
@@ -131,7 +138,7 @@ const Pesquisas = () => {
         return v != null && String(v).trim() !== "";
       })
     );
-  }, [sheetData, filteredRows, dateCol, subColumn]);
+  }, [sheetData, uniqueHeaders, filteredRows, dateCol, subColumn]);
 
   // Linhas que têm pelo menos 1 comentário não vazio, ordenadas por data desc
   const commentRows = useMemo(() => {
@@ -311,7 +318,7 @@ const Pesquisas = () => {
                   const subRows = sheetData.rows.filter(
                     (r) => String(r[subColumn] ?? "").trim() === sub
                   );
-                  const cols = (sheetData.headers ?? [])
+                  const cols = uniqueHeaders
                     .filter((h) => h !== dateCol && h !== subColumn)
                     .map((header) => {
                       const values = subRows.map((r) => r[header]);

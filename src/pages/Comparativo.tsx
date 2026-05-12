@@ -69,7 +69,9 @@ const Comparativo = () => {
 
   const headersForCompare = useMemo(() => {
     if (!sheetData) return [];
-    return sheetData.headers.filter((h) => h !== dateCol && h !== subColumn);
+    // Dedupe headers — planilha pode ter colunas duplicadas
+    const unique = Array.from(new Set(sheetData.headers));
+    return unique.filter((h) => h !== dateCol && h !== subColumn);
   }, [sheetData, dateCol, subColumn]);
 
   if (!configured) {
