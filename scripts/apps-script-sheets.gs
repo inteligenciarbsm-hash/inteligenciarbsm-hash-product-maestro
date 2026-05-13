@@ -75,8 +75,8 @@ function onOpen() {
 }
 
 /**
- * Detecta abas cujo Google Form vinculado foi deletado (não existe mais)
- * e oferece pra remover. Pede confirmação antes de apagar.
+ * Detecta abas órfãs (vinculadas a forms deletados OU que parecem respostas
+ * de form mas perderam o vínculo). Pede confirmação antes de apagar.
  */
 function limparAbasOrfas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -85,33 +85,44 @@ function limparAbasOrfas() {
 
   for (const sheet of ss.getSheets()) {
     const formUrl = sheet.getFormUrl();
-    if (!formUrl) continue; // sem form vinculado — não considera órfã
 
-    try {
-      FormApp.openByUrl(formUrl);
-      // Form ainda existe — mantém a aba
-    } catch (e) {
-      // openByUrl falhou → form foi deletado ou ficou inacessível
-      orfas.push(sheet);
+    if (formUrl) {
+      // Tem URL — testa se o form ainda existe
+      try {
+        FormApp.openByUrl(formUrl);
+        // Form vivo, mantém
+      } catch (e) {
+        orfas.push({ sheet, motivo: "form vinculado deletado" });
+      }
+    } else {
+      // Sem URL vinculada — pode ser aba normal, OU aba de respostas
+      // que perdeu o link quando o form foi deletado. Heurística:
+      // primeira célula bate com "Carimbo de data/hora" / "Timestamp".
+      if (sheet.getLastRow() > 0) {
+        const firstCell = String(sheet.getRange(1, 1).getValue() || "").trim();
+        if (/carimbo.*data|timestamp|data.?hora/i.test(firstCell)) {
+          orfas.push({ sheet, motivo: "parece resposta de form mas sem vínculo (form provavelmente deletado)" });
+        }
+      }
     }
   }
 
   if (orfas.length === 0) {
-    ui.alert("Nenhuma aba órfã encontrada — todos os forms vinculados ainda existem.");
+    ui.alert("Nenhuma aba órfã encontrada.");
     return;
   }
 
-  const lista = orfas.map(s => `• ${s.getName()}`).join("\n");
+  const lista = orfas.map(o => `• ${o.sheet.getName()}  —  ${o.motivo}`).join("\n");
   const resp = ui.alert(
     "Limpar abas órfãs?",
-    `As seguintes abas têm o formulário vinculado deletado:\n\n${lista}\n\nApagar essas abas? (Os dados serão perdidos.)`,
+    `Encontrei ${orfas.length} aba(s) candidata(s) a remoção:\n\n${lista}\n\nApagar todas? (Dados serão perdidos.)`,
     ui.ButtonSet.YES_NO
   );
 
   if (resp !== ui.Button.YES) return;
 
-  for (const sheet of orfas) {
-    ss.deleteSheet(sheet);
+  for (const o of orfas) {
+    ss.deleteSheet(o.sheet);
   }
-  ui.alert(`✅ ${orfas.length} aba(s) órfã(s) removida(s).`);
+  ui.alert(`✅ ${orfas.length} aba(s) removida(s).`);
 }
