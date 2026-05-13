@@ -195,7 +195,13 @@ const Pesquisas = () => {
     if (purchaseCols.length === 0) return null;
     const allValues = purchaseCols.flatMap((c) => c.values);
     const stats = numericStats(allValues, purchaseCols[0].header);
-    return stats.count > 0 ? { avg: stats.avg, count: stats.count, max: stats.max } : null;
+    if (stats.count === 0) return null;
+    // Pega o teto DA ESCALA (do histograma, que cobre a escala inteira),
+    // não o maior valor observado. Evita mostrar "3.00 / 3" quando a escala é 1-5.
+    const scaleMax = stats.histogram.length > 0
+      ? stats.histogram[stats.histogram.length - 1].value
+      : stats.max;
+    return { avg: stats.avg, count: stats.count, max: scaleMax };
   }, [columnAnalysis]);
 
   // Busca dentro dos comentários
