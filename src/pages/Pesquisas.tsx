@@ -234,16 +234,19 @@ const Pesquisas = () => {
       <AppHeader />
 
       <main className="container py-8 space-y-6">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-end justify-between gap-4 flex-wrap reveal">
           <div>
-            <h2 className="text-2xl font-bold">Pesquisas</h2>
-            <p className="text-sm text-muted-foreground">
-              Análise sensorial e indicadores das respostas dos formulários. Atualiza sozinho a cada minuto.
+            <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-1">
+              Painel
+            </div>
+            <h2 className="font-display text-3xl font-bold tracking-tight">Análise de produto</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Indicadores das respostas dos formulários — atualiza sozinho a cada minuto.
             </p>
           </div>
           <button
             onClick={() => { refetchSheets(); refetchData(); }}
-            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-lg border border-border/70 px-3 py-1.5 transition-colors hover:bg-muted/60"
             disabled={fetchingList || fetchingData}
           >
             <RefreshCw className={`h-4 w-4 ${(fetchingList || fetchingData) ? "animate-spin" : ""}`} />
@@ -251,9 +254,9 @@ const Pesquisas = () => {
           </button>
         </div>
 
-        <Card>
+        <Card className="reveal reveal-delay-1 shadow-layered border-border/70">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="font-display flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5 text-primary" />
               Filtros
             </CardTitle>
@@ -321,7 +324,7 @@ const Pesquisas = () => {
         ) : (
           <>
             {/* KPIs principais */}
-            <div className={`grid grid-cols-1 ${purchaseIntent ? "md:grid-cols-4" : "md:grid-cols-3"} gap-4`}>
+            <div className={`grid grid-cols-1 ${purchaseIntent ? "md:grid-cols-4" : "md:grid-cols-3"} gap-4 reveal reveal-delay-2`}>
               <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Avaliações" value={String(totalResponses)} />
               <KpiCard
                 icon={<Calendar className="h-4 w-4" />}
@@ -347,7 +350,7 @@ const Pesquisas = () => {
 
             {/* Modo isolado: "Todos" selecionado + 2+ produtos disponíveis → uma seção por produto */}
             {subColumn && selectedProduct === ALL_PRODUCTS && subValues.length >= 2 ? (
-              <div className="space-y-6">
+              <div className="space-y-6 reveal reveal-delay-3">
                 {subValues.map((sub) => {
                   const subRows = sheetData.rows.filter(
                     (r) => String(r[subColumn] ?? "").trim() === sub
@@ -371,7 +374,7 @@ const Pesquisas = () => {
               </div>
             ) : (
               /* Modo normal: cards inteligentes da seleção atual */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 reveal reveal-delay-3">
                 {columnAnalysis.map((col) => (
                   <SmartColumnCard
                     key={col.header}
@@ -546,13 +549,28 @@ const ProductSection = ({
 const KpiCard = ({
   icon, label, value, small, accent,
 }: { icon: React.ReactNode; label: string; value: string; small?: boolean; accent?: boolean }) => (
-  <Card className={accent ? "border-primary/40 bg-primary/5" : undefined}>
+  <Card
+    className={
+      accent
+        ? "relative overflow-hidden border-primary/30 bg-primary/[0.04] shadow-layered"
+        : "shadow-layered border-border/70"
+    }
+  >
+    {accent && (
+      <div className="absolute inset-x-0 top-0 h-0.5 bg-primary/70" aria-hidden="true" />
+    )}
     <CardContent className="pt-6">
-      <div className={`flex items-center gap-2 text-xs mb-1.5 ${accent ? "text-primary" : "text-muted-foreground"}`}>
+      <div className={`flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] mb-2 ${accent ? "text-primary" : "text-muted-foreground"}`}>
         {icon}
-        <span className="uppercase tracking-wide">{label}</span>
+        <span>{label}</span>
       </div>
-      <div className={small ? "text-lg font-semibold" : `text-3xl font-bold ${accent ? "text-primary" : ""}`}>
+      <div
+        className={
+          small
+            ? "font-display text-lg font-semibold tracking-tight"
+            : `font-display text-[2.5rem] leading-none font-bold tracking-tight tabular-nums ${accent ? "text-primary" : "text-foreground"}`
+        }
+      >
         {value}
       </div>
     </CardContent>
@@ -628,7 +646,7 @@ const SmartColumnCard = ({
     if (stats.count === 0) return null;
     const lowSample = stats.count < 3;
     return (
-      <Card className={lowSample ? "border-amber-300/60" : undefined}>
+      <Card className={`shadow-layered transition-shadow hover:shadow-lg ${lowSample ? "border-amber-300/60" : "border-border/70"}`}>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground line-clamp-2" title={header}>
             {header}
@@ -636,7 +654,7 @@ const SmartColumnCard = ({
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-primary">{stats.avg.toFixed(2)}</span>
+            <span className="font-display text-[2rem] leading-none font-bold tracking-tight tabular-nums text-primary">{stats.avg.toFixed(2)}</span>
             <RatingStars avg={stats.avg} max={stats.max} />
             <span className="text-xs text-muted-foreground ml-auto">{stats.count} resp.</span>
           </div>
@@ -659,7 +677,7 @@ const SmartColumnCard = ({
     // (caso típico: coluna que duplica o filtro de produto já aplicado).
     if (stats.items.length <= 1) return null;
     return (
-      <Card>
+      <Card className="shadow-layered border-border/70 transition-shadow hover:shadow-lg">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground line-clamp-2" title={header}>
             {header}
@@ -697,7 +715,7 @@ const SmartColumnCard = ({
     const stats = textStats(rows, header, dateCol, 4);
     if (stats.count === 0) return null;
     return (
-      <Card>
+      <Card className="shadow-layered border-border/70 transition-shadow hover:shadow-lg">
         <CardHeader className="pb-2">
           <div className="flex items-start gap-2">
             <MessageSquareQuote className="h-4 w-4 text-primary mt-0.5 shrink-0" />

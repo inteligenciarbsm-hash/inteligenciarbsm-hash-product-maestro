@@ -2,86 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ============================================================
+   Marca Própria — Análise Sensorial
+   Direção: "laboratório sensorial editorial"
+   - Fundo papel quente (não branco genérico)
+   - Navy profundo como âncora + âmbar como accent
+   - Profundidade via sombras em camadas + grão sutil
+   Todas as cores em HSL.
+   ============================================================ */
 
 @layer base {
   :root {
-    /* Paleta Rede Brasil — navy + branco */
-    --background: 0 0% 100%;
-    --foreground: 220 50% 12%;
+    /* Papel quente — base do tema, dá tato editorial */
+    --background: 40 33% 97%;
+    --foreground: 220 45% 13%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 50% 12%;
+    /* Cards: branco levemente quente, separa do fundo papel */
+    --card: 40 40% 99%;
+    --card-foreground: 220 45% 13%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 50% 12%;
+    --popover: 40 40% 99%;
+    --popover-foreground: 220 45% 13%;
 
-    /* Navy principal — inspirado no logo da Rede Brasil */
-    --primary: 218 70% 22%;
-    --primary-foreground: 0 0% 100%;
+    /* Navy aprofundado — âncora da marca */
+    --primary: 219 73% 19%;
+    --primary-foreground: 40 33% 97%;
 
-    --secondary: 218 30% 95%;
-    --secondary-foreground: 218 70% 22%;
+    --secondary: 219 24% 93%;
+    --secondary-foreground: 219 73% 19%;
 
-    --muted: 218 25% 96%;
-    --muted-foreground: 218 15% 45%;
+    --muted: 40 18% 92%;
+    --muted-foreground: 220 14% 42%;
 
-    --accent: 218 30% 92%;
-    --accent-foreground: 218 70% 22%;
+    /* Accent âmbar — sharp accent, combina com contexto de alimentos */
+    --accent: 36 30% 90%;
+    --accent-foreground: 28 70% 26%;
 
-    --destructive: 0 75% 50%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 40 33% 97%;
 
-    --border: 218 20% 90%;
-    --input: 218 20% 90%;
-    --ring: 218 70% 22%;
+    --border: 40 16% 87%;
+    --input: 40 16% 87%;
+    --ring: 219 73% 19%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 40 33% 97%;
+    --sidebar-foreground: 220 14% 30%;
+    --sidebar-primary: 219 73% 19%;
+    --sidebar-primary-foreground: 40 33% 97%;
+    --sidebar-accent: 40 18% 92%;
+    --sidebar-accent-foreground: 219 73% 19%;
+    --sidebar-border: 40 16% 87%;
+    --sidebar-ring: 219 73% 19%;
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
-
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
-
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
-
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
@@ -103,5 +95,43 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv01";
+    /* Atmosfera: grão sutil + halo radial navy no topo.
+       Cria profundidade sem pesar — fica de fundo, fixo. */
+    background-image:
+      radial-gradient(
+        ellipse 80% 50% at 50% -10%,
+        hsl(219 73% 19% / 0.06),
+        transparent 70%
+      ),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+    background-attachment: fixed;
+  }
+
+  /* Headings e números-chave usam a display font */
+  h1, h2, h3, .font-display {
+    font-family: theme("fontFamily.display");
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  /* Reveal escalonado no load da página.
+     Aplicar .reveal e opcionalmente .reveal-delay-N nos blocos. */
+  .reveal {
+    animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .reveal-delay-1 { animation-delay: 0.06s; }
+  .reveal-delay-2 { animation-delay: 0.12s; }
+  .reveal-delay-3 { animation-delay: 0.18s; }
+  .reveal-delay-4 { animation-delay: 0.24s; }
+  .reveal-delay-5 { animation-delay: 0.30s; }
+
+  /* Sombra em camadas — profundidade editorial, suave */
+  .shadow-layered {
+    box-shadow:
+      0 1px 2px hsl(220 45% 13% / 0.04),
+      0 4px 12px hsl(220 45% 13% / 0.05),
+      0 12px 32px hsl(220 45% 13% / 0.04);
   }
 }
