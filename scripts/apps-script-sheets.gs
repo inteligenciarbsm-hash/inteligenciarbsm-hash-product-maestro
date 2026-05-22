@@ -47,14 +47,33 @@ function doGet(e) {
   if (!sheet) return _json({ error: "Aba não encontrada" });
 
   const values = sheet.getDataRange().getValues();
-  if (values.length === 0) return _json({ headers: [], rows: [] });
+  if (values.length === 0) return _json({ headers: [], rows: [], questions: {} });
 
   const [headers, ...rest] = values;
   const rows = rest
     .filter(r => r.some(cell => cell !== "" && cell !== null))
     .map(r => Object.fromEntries(headers.map((h, i) => [String(h), r[i]])));
 
-  return _json({ headers: headers.map(String), rows });
+  // Metadata das perguntas do Form vinculado — tipo + opções.
+  // Permite o app tratar checkbox (marcar várias) como gráfico, não texto.
+  var questions = {};
+  try {
+    var formUrl = sheet.getFormUrl();
+    if (formUrl) {
+      FormApp.openByUrl(formUrl).getItems().forEach(function (item) {
+        var type = String(item.getType());
+        var title = item.getTitle();
+        var choices = null;
+        try {
+          if (type === "CHECKBOX") choices = item.asCheckboxItem().getChoices().map(function (c) { return c.getValue(); });
+          else if (type === "MULTIPLE_CHOICE") choices = item.asMultipleChoiceItem().getChoices().map(function (c) { return c.getValue(); });
+        } catch (e2) {}
+        questions[title] = { type: type, choices: choices };
+      });
+    }
+  } catch (e) {}
+
+  return _json({ headers: headers.map(String), rows: rows, questions: questions });
 }
 
 function _json(obj) {

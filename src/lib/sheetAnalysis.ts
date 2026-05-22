@@ -4,7 +4,44 @@
 
 import type { SheetCell, SheetRow } from "@/hooks/useSheets";
 
-export type ColumnKind = "date" | "number" | "categorical" | "text" | "email" | "skip";
+export type ColumnKind = "date" | "number" | "categorical" | "text" | "email" | "skip" | "multichoice";
+
+export type MultiChoiceStats = {
+  /** Número de respondentes (linhas não-vazias). */
+  count: number;
+  /** Cada opção com quantas vezes foi marcada e o % de respondentes. */
+  items: { value: string; count: number; pct: number }[];
+};
+
+/**
+ * Estatística pra pergunta de marcar várias (checkbox). As respostas vêm
+ * com as opções juntas por vírgula numa célula só, e as próprias opções
+ * podem conter vírgula (ex: "...(ex: mercearia, padaria, limpeza)").
+ * Por isso casamos pelas opções conhecidas (maior primeiro), removendo
+ * do texto conforme acha — assim vírgula dentro de opção não atrapalha.
+ */
+export const multiChoiceStats = (values: SheetCell[], choices: string[]): MultiChoiceStats => {
+  const sorted = [...choices].filter(Boolean).sort((a, b) => b.length - a.length);
+  const counts = new Map<string, number>();
+  choices.forEach((c) => counts.set(c, 0));
+  let respondents = 0;
+  values.forEach((v) => {
+    if (v == null || String(v).trim() === "") return;
+    respondents++;
+    let remaining = String(v);
+    for (const c of sorted) {
+      if (c && remaining.includes(c)) {
+        counts.set(c, (counts.get(c) ?? 0) + 1);
+        remaining = remaining.replace(c, "");
+      }
+    }
+  });
+  const items = Array.from(counts.entries())
+    .map(([value, count]) => ({ value, count, pct: respondents ? (count / respondents) * 100 : 0 }))
+    .filter((x) => x.count > 0)
+    .sort((a, b) => b.count - a.count);
+  return { count: respondents, items };
+};
 
 export type NumericStats = {
   count: number;

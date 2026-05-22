@@ -12,7 +12,7 @@ import AppHeader from "@/components/AppHeader";
 import { isSheetsConfigured, useSheetsList, useSheetData, type SheetRow, type SheetCell } from "@/hooks/useSheets";
 import {
   detectColumnKind, isDateColumn, numericStats, categoricalStats, textStats,
-  findSubSurveyColumn, type ColumnKind,
+  findSubSurveyColumn, multiChoiceStats, type ColumnKind,
 } from "@/lib/sheetAnalysis";
 
 const ALL_PRODUCTS = "__all__";
@@ -138,18 +138,23 @@ const Pesquisas = ({
     return Array.from(new Set(sheetData.headers));
   }, [sheetData]);
 
-  // Análise de cada coluna (skip date e sub-survey column)
-  // Apenas colunas numéricas e categóricas viram cards (texto vai pra tabela de comentários)
+  // Análise de cada coluna (skip date e sub-survey column).
+  // number/categorical/multichoice viram cards; texto vai pra tabela de comentários.
+  // multichoice (checkbox "marque todas") é detectado pela metadata do Form.
   const columnAnalysis = useMemo(() => {
     if (!sheetData) return [];
+    const questions = sheetData.questions ?? {};
     return uniqueHeaders
       .filter((h) => h !== dateCol && h !== subColumn)
       .map((header) => {
         const values = filteredRows.map((r) => r[header]);
-        const kind = detectColumnKind(header, values);
-        return { header, kind, values };
+        const q = questions[header];
+        const choices = q?.choices ?? null;
+        const isCheckbox = q?.type === "CHECKBOX" && choices && choices.length > 0;
+        const kind: ColumnKind = isCheckbox ? "multichoice" : detectColumnKind(header, values);
+        return { header, kind, values, choices };
       })
-      .filter((c) => c.kind === "number" || c.kind === "categorical");
+      .filter((c) => c.kind === "number" || c.kind === "categorical" || c.kind === "multichoice");
   }, [sheetData, uniqueHeaders, filteredRows, dateCol, subColumn]);
 
   // Colunas de texto livre (perguntas dissertativas) — viram tabela de comentários.
@@ -158,8 +163,12 @@ const Pesquisas = ({
   // (evita colunas com prefixo "456-" aparecerem todas como "—" quando filtrado em PAÇOCA 1).
   const textColumns = useMemo(() => {
     if (!sheetData) return [];
+    const questions = sheetData.questions ?? {};
     const allTextCols = uniqueHeaders.filter((h) => {
       if (h === dateCol || h === subColumn) return false;
+      // Checkbox/múltipla escolha nunca é comentário — vira card
+      const qType = questions[h]?.type;
+      if (qType === "CHECKBOX" || qType === "MULTIPLE_CHOICE") return false;
       const values = sheetData.rows.map((r) => r[h]);
       if (detectColumnKind(h, values) !== "text") return false;
       // Só conta como comentário se for texto REALMENTE livre: a maioria das
@@ -362,30 +371,38 @@ const Pesquisas = ({
           <Card><CardContent className="py-12 text-center text-muted-foreground">Nenhuma resposta neste formulário.</CardContent></Card>
         ) : (
           <>
-            {/* KPIs principais */}
-            <div className={`grid grid-cols-1 ${purchaseIntent ? "md:grid-cols-4" : "md:grid-cols-3"} gap-4 reveal reveal-delay-2`}>
-              <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Avaliações" value={String(totalResponses)} />
-              <KpiCard
-                icon={<Calendar className="h-4 w-4" />}
-                label="Última resposta"
-                value={lastResponseDate ? fmtDateTime(lastResponseDate.toISOString()) : "—"}
-                small
-              />
-              <KpiCard
-                icon={<Star className="h-4 w-4" />}
-                label="Nota média geral"
-                value={heroAvg != null ? heroAvg.toFixed(2) : "—"}
-                accent
-              />
-              {purchaseIntent && (
-                <KpiCard
-                  icon={<ShoppingCart className="h-4 w-4" />}
-                  label="Intenção de compra"
-                  value={`${purchaseIntent.avg.toFixed(2)} / ${purchaseIntent.max}`}
-                  accent
-                />
-              )}
-            </div>
+            {/* KPIs principais — Nota média e Intenção de compra só aparecem se houver notas */}
+            {(() => {
+              const kpiCount = 2 + (heroAvg != null ? 1 : 0) + (purchaseIntent ? 1 : 0);
+              const cols = kpiCount >= 4 ? "md:grid-cols-4" : kpiCount === 3 ? "md:grid-cols-3" : "md:grid-cols-2";
+              return (
+                <div className={`grid grid-cols-1 ${cols} gap-4 reveal reveal-delay-2`}>
+                  <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Avaliações" value={String(totalResponses)} />
+                  <KpiCard
+                    icon={<Calendar className="h-4 w-4" />}
+                    label="Última resposta"
+                    value={lastResponseDate ? fmtDateTime(lastResponseDate.toISOString()) : "—"}
+                    small
+                  />
+                  {heroAvg != null && (
+                    <KpiCard
+                      icon={<Star className="h-4 w-4" />}
+                      label="Nota média geral"
+                      value={heroAvg.toFixed(2)}
+                      accent
+                    />
+                  )}
+                  {purchaseIntent && (
+                    <KpiCard
+                      icon={<ShoppingCart className="h-4 w-4" />}
+                      label="Intenção de compra"
+                      value={`${purchaseIntent.avg.toFixed(2)} / ${purchaseIntent.max}`}
+                      accent
+                    />
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Modo isolado: "Todos" selecionado + 2+ produtos disponíveis → uma seção por produto */}
             {isolatedMode && subColumn && selectedProduct === ALL_PRODUCTS && subValues.length >= 2 ? (
@@ -420,6 +437,7 @@ const Pesquisas = ({
                     header={col.header}
                     kind={col.kind}
                     values={col.values}
+                    choices={col.choices}
                     rows={filteredRows}
                     dateCol={dateCol}
                   />
@@ -672,14 +690,56 @@ const StackedRatingBar = ({
 };
 
 const SmartColumnCard = ({
-  header, kind, values, rows, dateCol,
+  header, kind, values, rows, dateCol, choices,
 }: {
   header: string;
   kind: ColumnKind;
   values: SheetCell[];
   rows: SheetRow[];
   dateCol: string | null;
+  choices?: string[] | null;
 }) => {
+  if (kind === "multichoice" && choices) {
+    const stats = multiChoiceStats(values, choices);
+    if (stats.count === 0) return null;
+    const max = stats.items[0]?.count ?? 1;
+    return (
+      <Card className="shadow-layered border-border/70 transition-shadow hover:shadow-lg">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground line-clamp-3" title={header}>
+            {header}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-xs text-muted-foreground mb-2">
+            {stats.count} respondentes · marcam quantas quiserem
+          </div>
+          <div className="space-y-2">
+            {stats.items.slice(0, 8).map((item, i) => {
+              const colorIdx = Math.round((i / Math.max(1, Math.min(5, stats.items.length - 1))) * (RATING_COLORS.length - 1));
+              return (
+                <div key={item.value} className="space-y-1">
+                  <div className="flex justify-between text-xs gap-2">
+                    <span className="truncate" title={item.value}>{item.value}</span>
+                    <span className="text-muted-foreground whitespace-nowrap font-medium">
+                      {item.count} <span className="opacity-70">({item.pct.toFixed(0)}%)</span>
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${(item.count / max) * 100}%`, backgroundColor: RATING_COLORS[colorIdx] }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (kind === "number") {
     const stats = numericStats(values, header);
     if (stats.count === 0) return null;

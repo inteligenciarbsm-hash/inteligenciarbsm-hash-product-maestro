@@ -13,9 +13,13 @@ export type SheetSummary = {
 
 export type SheetCell = string | number | boolean | null;
 export type SheetRow = Record<string, SheetCell>;
+/** Metadata da pergunta no Form vinculado (preenchida pelo Apps Script). */
+export type FormQuestion = { type: string; choices: string[] | null };
 export type SheetData = {
   headers: string[];
   rows: SheetRow[];
+  /** Mapa título-da-pergunta → tipo/opções. Só vem se o Apps Script atualizado. */
+  questions?: Record<string, FormQuestion>;
 };
 
 /** Verifica se a fonte está configurada. Passe uma URL pra checar uma fonte específica. */
