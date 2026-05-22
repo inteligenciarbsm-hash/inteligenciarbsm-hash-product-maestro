@@ -54,12 +54,28 @@ type PesquisasProps = {
   title?: string;
   /** Subtítulo descritivo. */
   subtitle?: string;
+  /** Como achar a coluna do 2º filtro. Default: heurística de produto. */
+  subColumnFinder?: (headers: string[], rows: SheetRow[]) => string | null;
+  /** Label do 2º filtro. Default "Produto". */
+  subLabel?: string;
+  /** Label da opção "todos". Default "Todos (cada um isolado)". */
+  subAllLabel?: string;
+  /** Mostrar seções isoladas por valor quando "todos" selecionado? Default true. */
+  isolatedMode?: boolean;
+  /** Mostrar a dica "vá na aba Comparativo"? Default true. */
+  showComparativoHint?: boolean;
 };
 
-const Pesquisas = ({ apiUrl, title, subtitle }: PesquisasProps = {}) => {
+const Pesquisas = ({
+  apiUrl, title, subtitle,
+  subColumnFinder, subLabel, subAllLabel,
+  isolatedMode = true, showComparativoHint = true,
+}: PesquisasProps = {}) => {
   const pageTitle = title ?? "Análise de produto";
   const pageSubtitle =
     subtitle ?? "Indicadores das respostas dos formulários — atualiza sozinho a cada minuto.";
+  const filterLabel = subLabel ?? "Produto";
+  const allLabel = subAllLabel ?? "Todos (cada um isolado)";
   const configured = isSheetsConfigured(apiUrl);
   const {
     data: sheets, isLoading: loadingSheets, error: sheetsError,
@@ -90,9 +106,10 @@ const Pesquisas = ({ apiUrl, title, subtitle }: PesquisasProps = {}) => {
 
   useEffect(() => {
     if (!sheetData) return;
-    setSubColumn(findSubSurveyColumn(sheetData.headers, sheetData.rows));
+    const finder = subColumnFinder ?? findSubSurveyColumn;
+    setSubColumn(finder(sheetData.headers, sheetData.rows));
     setSelectedProduct(ALL_PRODUCTS);
-  }, [sheetData]);
+  }, [sheetData, subColumnFinder]);
 
   // Lista de valores possíveis da sub-pesquisa
   const subValues = useMemo(() => {
@@ -301,21 +318,23 @@ const Pesquisas = ({ apiUrl, title, subtitle }: PesquisasProps = {}) => {
 
                 {subColumn && subValues.length > 1 && (
                   <div className="space-y-1.5">
-                    <Label>Produto</Label>
+                    <Label>{filterLabel}</Label>
                     <Select value={selectedProduct} onValueChange={setSelectedProduct}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={ALL_PRODUCTS}>Todos (cada um isolado)</SelectItem>
+                        <SelectItem value={ALL_PRODUCTS}>{allLabel}</SelectItem>
                         {subValues.map((v) => (
                           <SelectItem key={v} value={v}>{v}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Pra comparar produtos lado a lado, vai na aba <strong>Comparativo</strong>.
-                    </p>
+                    {showComparativoHint && (
+                      <p className="text-xs text-muted-foreground">
+                        Pra comparar produtos lado a lado, vai na aba <strong>Comparativo</strong>.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -361,7 +380,7 @@ const Pesquisas = ({ apiUrl, title, subtitle }: PesquisasProps = {}) => {
             </div>
 
             {/* Modo isolado: "Todos" selecionado + 2+ produtos disponíveis → uma seção por produto */}
-            {subColumn && selectedProduct === ALL_PRODUCTS && subValues.length >= 2 ? (
+            {isolatedMode && subColumn && selectedProduct === ALL_PRODUCTS && subValues.length >= 2 ? (
               <div className="space-y-6 reveal reveal-delay-3">
                 {subValues.map((sub) => {
                   const subRows = sheetData.rows.filter(
