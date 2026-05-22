@@ -150,8 +150,14 @@ const Pesquisas = ({
         const values = filteredRows.map((r) => r[header]);
         const q = questions[header];
         const choices = q?.choices ?? null;
-        const isCheckbox = q?.type === "CHECKBOX" && choices && choices.length > 0;
-        const kind: ColumnKind = isCheckbox ? "multichoice" : detectColumnKind(header, values);
+        // Usa o tipo do Form quando disponível (mais confiável que heurística):
+        // CHECKBOX → multichoice; escolha única/dropdown → categorical; escala → number.
+        let kind: ColumnKind;
+        if (q?.type === "CHECKBOX" && choices && choices.length > 0) kind = "multichoice";
+        else if (q?.type === "MULTIPLE_CHOICE" || q?.type === "LIST") kind = "categorical";
+        else if (q?.type === "SCALE") kind = "number";
+        else if (q?.type === "TEXT" || q?.type === "PARAGRAPH_TEXT") kind = "text";
+        else kind = detectColumnKind(header, values);
         return { header, kind, values, choices };
       })
       .filter((c) => c.kind === "number" || c.kind === "categorical" || c.kind === "multichoice");
@@ -166,15 +172,12 @@ const Pesquisas = ({
     const questions = sheetData.questions ?? {};
     const allTextCols = uniqueHeaders.filter((h) => {
       if (h === dateCol || h === subColumn) return false;
-      // Checkbox/múltipla escolha nunca é comentário — vira card
       const qType = questions[h]?.type;
-      if (qType === "CHECKBOX" || qType === "MULTIPLE_CHOICE") return false;
+      // Com metadata: só campos de texto do Form viram comentário; o resto é card.
+      if (qType) return qType === "TEXT" || qType === "PARAGRAPH_TEXT";
+      // Sem metadata: heurística — text kind + maioria das respostas única.
       const values = sheetData.rows.map((r) => r[h]);
       if (detectColumnKind(h, values) !== "text") return false;
-      // Só conta como comentário se for texto REALMENTE livre: a maioria das
-      // respostas é única (cada pessoa escreveu algo diferente). Isso exclui
-      // múltipla escolha mal-classificada — e mantém o campo "outros" digitado,
-      // onde cada resposta tende a ser distinta.
       const nonEmpty = values.filter((v) => v != null && String(v).trim() !== "");
       if (nonEmpty.length === 0) return false;
       const unique = new Set(nonEmpty.map((v) => String(v).trim().toLowerCase()));
