@@ -161,7 +161,15 @@ const Pesquisas = ({
     const allTextCols = uniqueHeaders.filter((h) => {
       if (h === dateCol || h === subColumn) return false;
       const values = sheetData.rows.map((r) => r[h]);
-      return detectColumnKind(h, values) === "text";
+      if (detectColumnKind(h, values) !== "text") return false;
+      // Só conta como comentário se for texto REALMENTE livre: a maioria das
+      // respostas é única (cada pessoa escreveu algo diferente). Isso exclui
+      // múltipla escolha mal-classificada — e mantém o campo "outros" digitado,
+      // onde cada resposta tende a ser distinta.
+      const nonEmpty = values.filter((v) => v != null && String(v).trim() !== "");
+      if (nonEmpty.length === 0) return false;
+      const unique = new Set(nonEmpty.map((v) => String(v).trim().toLowerCase()));
+      return unique.size / nonEmpty.length >= 0.6;
     });
     return allTextCols.filter((c) =>
       filteredRows.some((r) => {
