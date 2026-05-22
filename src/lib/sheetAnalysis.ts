@@ -36,9 +36,9 @@ export const multiChoiceStats = (values: SheetCell[], choices: string[]): MultiC
       }
     }
   });
+  // Mantém TODAS as opções (inclusive 0 votos) pra dar contexto completo.
   const items = Array.from(counts.entries())
     .map(([value, count]) => ({ value, count, pct: respondents ? (count / respondents) * 100 : 0 }))
-    .filter((x) => x.count > 0)
     .sort((a, b) => b.count - a.count);
   return { count: respondents, items };
 };

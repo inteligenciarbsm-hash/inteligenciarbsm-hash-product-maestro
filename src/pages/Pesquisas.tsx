@@ -718,10 +718,10 @@ const SmartColumnCard = ({
             {stats.count} respondentes · marcam quantas quiserem
           </div>
           <div className="space-y-2">
-            {stats.items.slice(0, 8).map((item, i) => {
+            {stats.items.map((item, i) => {
               const colorIdx = Math.round((i / Math.max(1, Math.min(5, stats.items.length - 1))) * (RATING_COLORS.length - 1));
               return (
-                <div key={item.value} className="space-y-1">
+                <div key={item.value} className={`space-y-1 ${item.count === 0 ? "opacity-50" : ""}`}>
                   <div className="flex justify-between text-xs gap-2">
                     <span className="truncate" title={item.value}>{item.value}</span>
                     <span className="text-muted-foreground whitespace-nowrap font-medium">
@@ -775,23 +775,33 @@ const SmartColumnCard = ({
   if (kind === "categorical") {
     const stats = categoricalStats(values);
     if (stats.count === 0) return null;
-    // Esconde cards redundantes: se só tem 1 valor único, não há informação útil pra mostrar
-    // (caso típico: coluna que duplica o filtro de produto já aplicado).
-    if (stats.items.length <= 1) return null;
+    // Quando temos a lista de opções do Form, inclui as não votadas (count 0)
+    // pra dar contexto completo. Sem metadata, esconde colunas de 1 valor só
+    // (caso típico: coluna redundante que duplica o filtro já aplicado).
+    const hasChoices = !!(choices && choices.length > 0);
+    if (!hasChoices && stats.items.length <= 1) return null;
+    let items = stats.items;
+    if (hasChoices) {
+      const present = new Set(items.map((i) => i.value));
+      const missing = choices!
+        .filter((c) => !present.has(c))
+        .map((c) => ({ value: c, count: 0, pct: 0 }));
+      items = [...items, ...missing];
+    }
     return (
       <Card className="shadow-layered border-border/70 transition-shadow hover:shadow-lg">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground line-clamp-2" title={header}>
+          <CardTitle className="text-sm font-medium text-muted-foreground line-clamp-3" title={header}>
             {header}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-xs text-muted-foreground mb-2">{stats.count} respostas</div>
           <div className="space-y-2">
-            {stats.items.slice(0, 6).map((item, i) => {
-              const colorIdx = Math.round((i / Math.max(1, Math.min(5, stats.items.length - 1))) * (RATING_COLORS.length - 1));
+            {items.map((item, i) => {
+              const colorIdx = Math.round((i / Math.max(1, Math.min(5, items.length - 1))) * (RATING_COLORS.length - 1));
               return (
-                <div key={item.value} className="space-y-1">
+                <div key={item.value} className={`space-y-1 ${item.count === 0 ? "opacity-50" : ""}`}>
                   <div className="flex justify-between text-xs gap-2">
                     <span className="truncate" title={item.value}>{item.value}</span>
                     <span className="text-muted-foreground whitespace-nowrap font-medium">
