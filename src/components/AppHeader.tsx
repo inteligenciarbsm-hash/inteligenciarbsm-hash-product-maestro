@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 
-const APP_VERSION = "v1.24";
+const APP_VERSION = "v1.25";
 
 const ZuppaMark = () => (
   <Link to="/pesquisas" className="flex items-center gap-2.5 group">
@@ -40,11 +40,11 @@ const AppHeader = () => {
           <NavLink to="/pesquisas" className={navTabClass} activeClassName={navTabActiveClass}>
             Análise de produto
           </NavLink>
-          <NavLink to="/pesquisas-sac" className={navTabClass} activeClassName={navTabActiveClass}>
-            Pesquisas do SAC
-          </NavLink>
           <NavLink to="/comparativo" className={navTabClass} activeClassName={navTabActiveClass}>
             Comparativo
+          </NavLink>
+          <NavLink to="/pesquisas-sac" className={navTabClass} activeClassName={navTabActiveClass}>
+            Pesquisas do SAC
           </NavLink>
         </nav>
 
