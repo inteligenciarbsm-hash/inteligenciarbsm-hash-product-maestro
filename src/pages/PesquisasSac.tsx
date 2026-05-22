@@ -14,7 +14,9 @@ const PesquisasSac = () => (
     title="Pesquisas do SAC"
     subtitle="Indicadores das pesquisas do SAC — atualiza sozinho a cada minuto."
     subColumnFinder={(headers) =>
-      headers.find((h) => /rede/i.test(h)) ?? null
+      headers.find(
+        (h) => h.trim().toLowerCase().replace(/\?+$/, "") === "qual a sua rede"
+      ) ?? null
     }
     subLabel="Qual a sua rede?"
     subAllLabel="Todas as redes"
