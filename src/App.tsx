@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NotFound from "./pages/NotFound.tsx";
 import Pesquisas from "./pages/Pesquisas.tsx";
+import PesquisasSac from "./pages/PesquisasSac.tsx";
 import Comparativo from "./pages/Comparativo.tsx";
 import Auth from "./pages/Auth.tsx";
 import AguardandoAprovacao from "./pages/AguardandoAprovacao.tsx";
@@ -31,6 +32,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Pesquisas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pesquisas-sac"
+              element={
+                <ProtectedRoute>
+                  <PesquisasSac />
                 </ProtectedRoute>
               }
             />

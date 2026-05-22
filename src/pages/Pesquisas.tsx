@@ -47,12 +47,24 @@ const fmtDateTime = (v: unknown) => {
 
 const truncate = (s: string, n = 30) => (s.length > n ? s.slice(0, n) + "…" : s);
 
-const Pesquisas = () => {
-  const configured = isSheetsConfigured();
+type PesquisasProps = {
+  /** URL /exec da fonte. Se omitida, usa VITE_SHEETS_API_URL (Análise de produto). */
+  apiUrl?: string;
+  /** Título exibido no topo da página. */
+  title?: string;
+  /** Subtítulo descritivo. */
+  subtitle?: string;
+};
+
+const Pesquisas = ({ apiUrl, title, subtitle }: PesquisasProps = {}) => {
+  const pageTitle = title ?? "Análise de produto";
+  const pageSubtitle =
+    subtitle ?? "Indicadores das respostas dos formulários — atualiza sozinho a cada minuto.";
+  const configured = isSheetsConfigured(apiUrl);
   const {
     data: sheets, isLoading: loadingSheets, error: sheetsError,
     refetch: refetchSheets, isFetching: fetchingList,
-  } = useSheetsList();
+  } = useSheetsList(apiUrl);
   const [selected, setSelected] = useState<string | null>(null);
   const [subColumn, setSubColumn] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<string>(ALL_PRODUCTS);
@@ -60,7 +72,7 @@ const Pesquisas = () => {
   const {
     data: sheetData, isLoading: loadingData, error: dataError,
     refetch: refetchData, isFetching: fetchingData,
-  } = useSheetData(selected);
+  } = useSheetData(selected, apiUrl);
 
   // Auto-seleciona primeiro form com respostas
   useEffect(() => {
@@ -216,12 +228,12 @@ const Pesquisas = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5 text-primary" />
-                Pesquisas — configuração pendente
+                {pageTitle} — configuração pendente
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              Adicione a variável <code className="text-foreground"> VITE_SHEETS_API_URL </code> com a URL pública do
-              Apps Script (terminada em <code>/exec</code>).
+              A fonte de dados (URL pública do Apps Script, terminada em <code>/exec</code>) ainda
+              não foi configurada nas variáveis de ambiente.
             </CardContent>
           </Card>
         </main>
@@ -239,9 +251,9 @@ const Pesquisas = () => {
             <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-1">
               Painel
             </div>
-            <h2 className="font-display text-3xl font-bold tracking-tight">Análise de produto</h2>
+            <h2 className="font-display text-3xl font-bold tracking-tight">{pageTitle}</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Indicadores das respostas dos formulários — atualiza sozinho a cada minuto.
+              {pageSubtitle}
             </p>
           </div>
           <button

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-// Configurar via env: VITE_SHEETS_API_URL = URL pública do Apps Script (...exec)
-const API = import.meta.env.VITE_SHEETS_API_URL as string | undefined;
+// Fonte padrão (Análise de produto): VITE_SHEETS_API_URL
+const DEFAULT_API = import.meta.env.VITE_SHEETS_API_URL as string | undefined;
 
 export type SheetSummary = {
   name: string;
@@ -18,7 +18,8 @@ export type SheetData = {
   rows: SheetRow[];
 };
 
-export const isSheetsConfigured = () => !!API;
+/** Verifica se a fonte está configurada. Passe uma URL pra checar uma fonte específica. */
+export const isSheetsConfigured = (apiUrl?: string) => !!(apiUrl ?? DEFAULT_API);
 
 const fetchOrThrow = async <T,>(url: string): Promise<T> => {
   const res = await fetch(url, { method: "GET" });
@@ -33,31 +34,41 @@ const fetchOrThrow = async <T,>(url: string): Promise<T> => {
 // Auto-refresh em background a cada 60s — pesquisas novas aparecem sozinhas.
 const AUTO_REFRESH_MS = 60_000;
 
-export const useSheetsList = () => {
+/**
+ * Lista as abas de uma planilha via Apps Script.
+ * @param apiUrl URL /exec da fonte. Se omitida, usa VITE_SHEETS_API_URL.
+ */
+export const useSheetsList = (apiUrl?: string) => {
+  const api = apiUrl ?? DEFAULT_API;
   return useQuery({
-    queryKey: ["sheets-list"],
+    queryKey: ["sheets-list", api],
     queryFn: async (): Promise<SheetSummary[]> => {
-      if (!API) throw new Error("VITE_SHEETS_API_URL não configurada");
-      const data = await fetchOrThrow<{ sheets: SheetSummary[] }>(API);
+      if (!api) throw new Error("Fonte de dados (Apps Script) não configurada");
+      const data = await fetchOrThrow<{ sheets: SheetSummary[] }>(api);
       return data.sheets ?? [];
     },
-    enabled: !!API,
+    enabled: !!api,
     staleTime: 30_000,
     refetchInterval: AUTO_REFRESH_MS,
     refetchOnWindowFocus: true,
   });
 };
 
-export const useSheetData = (sheetName: string | null) => {
+/**
+ * Busca as linhas de uma aba.
+ * @param apiUrl URL /exec da fonte. Se omitida, usa VITE_SHEETS_API_URL.
+ */
+export const useSheetData = (sheetName: string | null, apiUrl?: string) => {
+  const api = apiUrl ?? DEFAULT_API;
   return useQuery({
-    queryKey: ["sheet-data", sheetName],
+    queryKey: ["sheet-data", api, sheetName],
     queryFn: async (): Promise<SheetData> => {
-      if (!API) throw new Error("VITE_SHEETS_API_URL não configurada");
+      if (!api) throw new Error("Fonte de dados (Apps Script) não configurada");
       if (!sheetName) throw new Error("Selecione um formulário");
-      const url = `${API}?sheet=${encodeURIComponent(sheetName)}`;
+      const url = `${api}?sheet=${encodeURIComponent(sheetName)}`;
       return fetchOrThrow<SheetData>(url);
     },
-    enabled: !!API && !!sheetName,
+    enabled: !!api && !!sheetName,
     staleTime: 15_000,
     refetchInterval: AUTO_REFRESH_MS,
     refetchOnWindowFocus: true,
