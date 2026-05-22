@@ -411,7 +411,7 @@ const Pesquisas = ({
               const kpiCount = 2 + (heroAvg != null ? 1 : 0) + (purchaseIntent ? 1 : 0);
               const cols = kpiCount >= 4 ? "md:grid-cols-4" : kpiCount === 3 ? "md:grid-cols-3" : "md:grid-cols-2";
               return (
-                <div className={`grid grid-cols-1 ${cols} gap-4 reveal reveal-delay-2`}>
+                <div className={`print-kpis grid grid-cols-1 ${cols} gap-4 reveal reveal-delay-2`}>
                   <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Avaliações" value={String(totalResponses)} />
                   <KpiCard
                     icon={<Calendar className="h-4 w-4" />}
@@ -465,7 +465,7 @@ const Pesquisas = ({
               </div>
             ) : (
               /* Modo normal: cards inteligentes da seleção atual */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 reveal reveal-delay-3">
+              <div className="print-cards grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 reveal reveal-delay-3">
                 {columnAnalysis.map((col) => (
                   <SmartColumnCard
                     key={col.header}
@@ -620,7 +620,7 @@ const ProductSection = ({
             Sem perguntas com opções pra exibir.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="print-cards grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {columns.map((col) => (
               <SmartColumnCard
                 key={col.header}
