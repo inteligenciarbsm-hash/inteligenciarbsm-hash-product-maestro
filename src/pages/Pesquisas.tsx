@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Calendar, FileSpreadsheet, MessageSquareQuote, RefreshCw, Star, TrendingUp,
-  ShoppingCart, AlertTriangle, Search, X,
+  ShoppingCart, AlertTriangle, Search, X, Download,
 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { isSheetsConfigured, useSheetsList, useSheetData, type SheetRow, type SheetCell } from "@/hooks/useSheets";
@@ -256,6 +256,12 @@ const Pesquisas = ({
   // Busca dentro dos comentários
   const [commentSearch, setCommentSearch] = useState("");
 
+  // Nome de exibição do form selecionado (título do Form, se houver)
+  const selectedFormName = useMemo(() => {
+    const s = (sheets ?? []).find((x) => x.name === selected);
+    return s ? s.formTitle || s.name : selected ?? "—";
+  }, [sheets, selected]);
+
   if (!configured) {
     return (
       <div className="min-h-screen bg-background">
@@ -283,7 +289,24 @@ const Pesquisas = ({
       <AppHeader />
 
       <main className="container py-8 space-y-6">
-        <div className="flex items-end justify-between gap-4 flex-wrap reveal">
+        {/* Cabeçalho que só aparece no PDF (impressão) */}
+        <div className="print-only mb-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Marca Própria — Análise Sensorial
+          </div>
+          <h1 className="font-display text-2xl font-bold">{pageTitle}</h1>
+          <div className="text-sm mt-1">Formulário: <strong>{selectedFormName}</strong></div>
+          {subColumn && subValues.length > 1 && (
+            <div className="text-sm">
+              {filterLabel}: <strong>{selectedProduct === ALL_PRODUCTS ? allLabel : selectedProduct}</strong>
+            </div>
+          )}
+          <div className="text-xs text-muted-foreground mt-1">
+            Gerado em {new Date().toLocaleString("pt-BR")}
+          </div>
+        </div>
+
+        <div className="no-print flex items-end justify-between gap-4 flex-wrap reveal">
           <div>
             <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-1">
               Painel
@@ -293,17 +316,26 @@ const Pesquisas = ({
               {pageSubtitle}
             </p>
           </div>
-          <button
-            onClick={() => { refetchSheets(); refetchData(); }}
-            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-lg border border-border/70 px-3 py-1.5 transition-colors hover:bg-muted/60"
-            disabled={fetchingList || fetchingData}
-          >
-            <RefreshCw className={`h-4 w-4 ${(fetchingList || fetchingData) ? "animate-spin" : ""}`} />
-            Atualizar agora
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { refetchSheets(); refetchData(); }}
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-lg border border-border/70 px-3 py-1.5 transition-colors hover:bg-muted/60"
+              disabled={fetchingList || fetchingData}
+            >
+              <RefreshCw className={`h-4 w-4 ${(fetchingList || fetchingData) ? "animate-spin" : ""}`} />
+              Atualizar agora
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="text-sm flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 transition-colors hover:bg-primary/90"
+            >
+              <Download className="h-4 w-4" />
+              Exportar PDF
+            </button>
+          </div>
         </div>
 
-        <Card className="reveal reveal-delay-1 shadow-layered border-border/70">
+        <Card className="no-print reveal reveal-delay-1 shadow-layered border-border/70">
           <CardHeader>
             <CardTitle className="font-display flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5 text-primary" />

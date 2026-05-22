@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 
-const APP_VERSION = "v1.30";
+const APP_VERSION = "v1.31";
 
 const ZuppaMark = () => (
   <Link to="/pesquisas" className="flex items-center gap-2.5 group">
@@ -32,7 +32,7 @@ const AppHeader = () => {
   const { user, signOut } = useAuth();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/70 bg-card/85 backdrop-blur-md">
+    <header className="no-print sticky top-0 z-30 border-b border-border/70 bg-card/85 backdrop-blur-md">
       <div className="container flex items-center gap-6 py-3">
         <ZuppaMark />
 

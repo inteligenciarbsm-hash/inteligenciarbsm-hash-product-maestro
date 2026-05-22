@@ -134,4 +134,34 @@
       0 4px 12px hsl(220 45% 13% / 0.05),
       0 12px 32px hsl(220 45% 13% / 0.04);
   }
+
+  /* Visível só na impressão (cabeçalho do PDF) */
+  .print-only { display: none; }
+}
+
+/* ============ Impressão / Exportar PDF ============ */
+@media print {
+  /* Some com o que não faz sentido no PDF */
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+
+  /* Fundo branco limpo, sem grão nem halo */
+  body {
+    background: #fff !important;
+    background-image: none !important;
+  }
+
+  /* Cards mais leves e sem quebrar no meio da página */
+  .shadow-layered {
+    box-shadow: none !important;
+    border: 1px solid #e5e1d8 !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Evita corte feio dos blocos */
+  .reveal { animation: none !important; }
+  main { padding-top: 0 !important; }
+
+  @page { margin: 1.5cm; }
 }
