@@ -258,7 +258,7 @@ const Pesquisas = ({
 
   if (!configured) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background md:pl-64">
         <AppHeader />
         <main className="container py-8">
           <Card>
@@ -279,7 +279,7 @@ const Pesquisas = ({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background md:pl-64">
       <AppHeader />
 
       <main className="container py-8 space-y-6">
