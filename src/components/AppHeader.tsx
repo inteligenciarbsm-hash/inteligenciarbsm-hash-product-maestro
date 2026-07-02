@@ -39,6 +39,9 @@ const NavItems = () => (
     <NavLink to="/pesquisas-sac" className={navItemBase} activeClassName={navItemActive}>
       Pesquisas do SAC
     </NavLink>
+    <NavLink to="/central-sac" className={navItemBase} activeClassName={navItemActive}>
+      Central SAC
+    </NavLink>
   </>
 );
 

@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound.tsx";
 import Pesquisas from "./pages/Pesquisas.tsx";
 import PesquisasSac from "./pages/PesquisasSac.tsx";
 import Comparativo from "./pages/Comparativo.tsx";
+import CentralSac from "./pages/CentralSac.tsx";
 import Auth from "./pages/Auth.tsx";
 import AguardandoAprovacao from "./pages/AguardandoAprovacao.tsx";
 import Aprovar from "./pages/Aprovar.tsx";
@@ -48,6 +49,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Comparativo />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/central-sac"
+              element={
+                <ProtectedRoute>
+                  <CentralSac />
                 </ProtectedRoute>
               }
             />

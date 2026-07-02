@@ -14,6 +14,147 @@ export type Database = {
   }
   public: {
     Tables: {
+      sac_ocorrencias: {
+        Row: {
+          id: string
+          num_ocorrencia: string
+          data_email: string | null
+          produto: string | null
+          fornecedor: string | null
+          associado: string | null
+          tipo_ocorrencia: string | null
+          criticidade: string | null
+          ocorrencia_descricao: string | null
+          lote: string | null
+          data_fabricacao: string | null
+          data_validade: string | null
+          nome_consumidor: string | null
+          tel_consumidor: string | null
+          email_consumidor: string | null
+          endereco_consumidor: string | null
+          fornecedor_comunicado_em: string | null
+          associado_comunicado_em: string | null
+          ressarcimento_em: string | null
+          rnc_finalizado_em: string | null
+          dias_resolucao: number | null
+          observacao: string | null
+          sincronizado_em: string
+        }
+        Insert: {
+          id?: string
+          num_ocorrencia: string
+          data_email?: string | null
+          produto?: string | null
+          fornecedor?: string | null
+          associado?: string | null
+          tipo_ocorrencia?: string | null
+          criticidade?: string | null
+          ocorrencia_descricao?: string | null
+          lote?: string | null
+          data_fabricacao?: string | null
+          data_validade?: string | null
+          nome_consumidor?: string | null
+          tel_consumidor?: string | null
+          email_consumidor?: string | null
+          endereco_consumidor?: string | null
+          fornecedor_comunicado_em?: string | null
+          associado_comunicado_em?: string | null
+          ressarcimento_em?: string | null
+          rnc_finalizado_em?: string | null
+          dias_resolucao?: number | null
+          observacao?: string | null
+          sincronizado_em?: string
+        }
+        Update: {
+          id?: string
+          num_ocorrencia?: string
+          data_email?: string | null
+          produto?: string | null
+          fornecedor?: string | null
+          associado?: string | null
+          tipo_ocorrencia?: string | null
+          criticidade?: string | null
+          ocorrencia_descricao?: string | null
+          lote?: string | null
+          data_fabricacao?: string | null
+          data_validade?: string | null
+          nome_consumidor?: string | null
+          tel_consumidor?: string | null
+          email_consumidor?: string | null
+          endereco_consumidor?: string | null
+          fornecedor_comunicado_em?: string | null
+          associado_comunicado_em?: string | null
+          ressarcimento_em?: string | null
+          rnc_finalizado_em?: string | null
+          dias_resolucao?: number | null
+          observacao?: string | null
+          sincronizado_em?: string
+        }
+        Relationships: []
+      }
+      sac_sync_log: {
+        Row: {
+          id: string
+          iniciado_em: string
+          finalizado_em: string | null
+          duracao_ms: number | null
+          status: string
+          linhas_lidas: number
+          linhas_importadas: number
+          linhas_atualizadas: number
+          linhas_ignoradas: number
+          linhas_com_erro: number
+          erro: string | null
+        }
+        Insert: {
+          id?: string
+          iniciado_em?: string
+          finalizado_em?: string | null
+          duracao_ms?: number | null
+          status: string
+          linhas_lidas?: number
+          linhas_importadas?: number
+          linhas_atualizadas?: number
+          linhas_ignoradas?: number
+          linhas_com_erro?: number
+          erro?: string | null
+        }
+        Update: {
+          id?: string
+          iniciado_em?: string
+          finalizado_em?: string | null
+          duracao_ms?: number | null
+          status?: string
+          linhas_lidas?: number
+          linhas_importadas?: number
+          linhas_atualizadas?: number
+          linhas_ignoradas?: number
+          linhas_com_erro?: number
+          erro?: string | null
+        }
+        Relationships: []
+      }
+      system_config: {
+        Row: {
+          chave: string
+          valor: string | null
+          descricao: string | null
+          atualizado_em: string
+        }
+        Insert: {
+          chave: string
+          valor?: string | null
+          descricao?: string | null
+          atualizado_em?: string
+        }
+        Update: {
+          chave?: string
+          valor?: string | null
+          descricao?: string | null
+          atualizado_em?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           id: string
