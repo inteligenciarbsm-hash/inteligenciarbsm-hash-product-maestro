@@ -122,28 +122,31 @@ const CentralSac = () => {
     };
   }, [ocorrencias]);
 
+  // Todas as seções da página (resumo, KPIs, score, alertas, prioridades,
+  // gráficos e tabela) derivam de ocorrenciasFiltradas — os filtros do topo
+  // controlam a página inteira, não só a tabela.
   const ocorrenciasFiltradas = useMemo(
     () => filtrarOcorrencias(ocorrencias ?? [], filtros),
     [ocorrencias, filtros]
   );
 
-  const kpis = useMemo(() => calcularKpis(ocorrencias ?? []), [ocorrencias]);
-  const alertas = useMemo(() => gerarAlertas(ocorrencias ?? []), [ocorrencias]);
+  const kpis = useMemo(() => calcularKpis(ocorrenciasFiltradas), [ocorrenciasFiltradas]);
+  const alertas = useMemo(() => gerarAlertas(ocorrenciasFiltradas), [ocorrenciasFiltradas]);
   const score = useMemo(() => calcularScoreSaude(kpis), [kpis]);
-  const tendencias = useMemo(() => calcularTendencias(ocorrencias ?? []), [ocorrencias]);
+  const tendencias = useMemo(() => calcularTendencias(ocorrenciasFiltradas), [ocorrenciasFiltradas]);
   const resumo = useMemo(
     () => gerarResumoExecutivo(kpis, score, tendencias),
     [kpis, score, tendencias]
   );
   const prioridades = useMemo(
-    () => gerarPrioridades(ocorrencias ?? [], kpis),
-    [ocorrencias, kpis]
+    () => gerarPrioridades(ocorrenciasFiltradas, kpis),
+    [ocorrenciasFiltradas, kpis]
   );
-  const evolucaoMensal = useMemo(() => agruparPorMes(ocorrencias ?? []), [ocorrencias]);
-  const rankingFornecedores = useMemo(() => agruparPorFornecedor(ocorrencias ?? []), [ocorrencias]);
-  const rankingProdutos = useMemo(() => agruparPorProduto(ocorrencias ?? []), [ocorrencias]);
-  const distribuicaoCriticidade = useMemo(() => agruparPorCriticidade(ocorrencias ?? []), [ocorrencias]);
-  const distribuicaoTipo = useMemo(() => agruparPorTipo(ocorrencias ?? []), [ocorrencias]);
+  const evolucaoMensal = useMemo(() => agruparPorMes(ocorrenciasFiltradas), [ocorrenciasFiltradas]);
+  const rankingFornecedores = useMemo(() => agruparPorFornecedor(ocorrenciasFiltradas), [ocorrenciasFiltradas]);
+  const rankingProdutos = useMemo(() => agruparPorProduto(ocorrenciasFiltradas), [ocorrenciasFiltradas]);
+  const distribuicaoCriticidade = useMemo(() => agruparPorCriticidade(ocorrenciasFiltradas), [ocorrenciasFiltradas]);
+  const distribuicaoTipo = useMemo(() => agruparPorTipo(ocorrenciasFiltradas), [ocorrenciasFiltradas]);
 
   return (
     <div className="min-h-screen bg-background md:pl-64">
@@ -185,7 +188,7 @@ const CentralSac = () => {
           </Card>
         )}
 
-        {/* Filtros — controlam a tabela de ocorrências ao final da página */}
+        {/* Filtros — controlam toda a página (resumo, KPIs, alertas, gráficos e tabela) */}
         <SacFiltersPanel
           filtros={filtros}
           opcoes={opcoesFiltro}
