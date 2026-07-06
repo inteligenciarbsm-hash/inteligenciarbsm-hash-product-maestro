@@ -5,6 +5,8 @@ import {
   ArrowUpDown,
   ChevronDown,
   Download,
+  FileText,
+  Loader2,
   Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +47,7 @@ import {
   type SacOcorrencia,
   type SacOrdenacaoCampo,
 } from "@/lib/sacAnalysis";
+import { baixarDocumentoRnc } from "@/lib/rncDocument";
 
 type SacOccurrencesTableProps = {
   /** Ocorrências já filtradas pelo painel de filtros do topo da página. */
@@ -93,6 +96,7 @@ const SacOccurrencesTable = ({ ocorrencias }: SacOccurrencesTableProps) => {
   const [pagina, setPagina] = useState(1);
   const [selecionada, setSelecionada] = useState<SacOcorrencia | null>(null);
   const [detalheAberto, setDetalheAberto] = useState(false);
+  const [gerandoWordId, setGerandoWordId] = useState<string | null>(null);
 
   const buscaFiltros: SacFiltrosTabela = useMemo(() => ({ busca: busca || undefined }), [busca]);
 
@@ -147,6 +151,17 @@ const SacOccurrencesTable = ({ ocorrencias }: SacOccurrencesTableProps) => {
   const abrirDetalhe = (o: SacOcorrencia) => {
     setSelecionada(o);
     setDetalheAberto(true);
+  };
+
+  const gerarWord = async (o: SacOcorrencia) => {
+    setGerandoWordId(o.id);
+    try {
+      await baixarDocumentoRnc(o);
+    } catch (err) {
+      console.error("Falha ao gerar o Word do RNC:", err);
+    } finally {
+      setGerandoWordId(null);
+    }
   };
 
   return (
@@ -215,6 +230,7 @@ const SacOccurrencesTable = ({ ocorrencias }: SacOccurrencesTableProps) => {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Dias em aberto</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -249,6 +265,25 @@ const SacOccurrencesTable = ({ ocorrencias }: SacOccurrencesTableProps) => {
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {dias !== null ? dias : status === "encerrada" ? `${o.dias_resolucao ?? "—"} (resolvida)` : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={gerandoWordId === o.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          gerarWord(o);
+                        }}
+                      >
+                        {gerandoWordId === o.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <FileText className="h-3.5 w-3.5" />
+                        )}
+                        Gerar Word
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
