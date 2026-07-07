@@ -62,6 +62,58 @@ export async function upsertOcorrencias(
   return ocorrencias.length;
 }
 
+// ─── Remoção de órfãos ─────────────────────────────────────────────────────────
+// Mantém o banco espelhando exatamente a planilha: qualquer num_ocorrencia que
+// exista em sac_ocorrencias mas não veio no lote mais recente foi apagado (ou
+// renomeado) na planilha, e deve ser removido também do banco. Só roda DEPOIS
+// do UPSERT ter concluído com sucesso — nunca antes.
+//
+// Proteção: se numerosValidos vier vazio (planilha ilegível, erro de leitura
+// etc.), a remoção é abortada. Sem essa guarda, uma falha de leitura zeraria
+// a tabela inteira em vez de simplesmente não sincronizar nada.
+
+export async function removerOrfaos(
+  supabase: SupabaseClient,
+  numerosValidos: string[]
+): Promise<{ removidos: number; numerosRemovidos: string[] }> {
+  if (numerosValidos.length === 0) {
+    log("WARN", "Lista de números válidos vazia — remoção de órfãos abortada por segurança");
+    return { removidos: 0, numerosRemovidos: [] };
+  }
+
+  const { data: existentes, error: erroSelect } = await supabase
+    .from("sac_ocorrencias")
+    .select("num_ocorrencia");
+
+  if (erroSelect) {
+    throw new Error(`Erro ao listar ocorrências existentes: ${erroSelect.message}`);
+  }
+
+  const validosSet = new Set(numerosValidos);
+  const orfaos = (existentes ?? [])
+    .map((r) => r.num_ocorrencia as string)
+    .filter((numero) => !validosSet.has(numero));
+
+  if (orfaos.length === 0) {
+    log("INFO", "Nenhuma ocorrência órfã encontrada");
+    return { removidos: 0, numerosRemovidos: [] };
+  }
+
+  log("INFO", "Removendo ocorrências órfãs", { total: orfaos.length, numeros: orfaos });
+
+  const { error: erroDelete } = await supabase
+    .from("sac_ocorrencias")
+    .delete()
+    .in("num_ocorrencia", orfaos);
+
+  if (erroDelete) {
+    throw new Error(`Erro ao remover ocorrências órfãs: ${erroDelete.message}`);
+  }
+
+  log("INFO", "Remoção de órfãos concluída", { removidos: orfaos.length });
+  return { removidos: orfaos.length, numerosRemovidos: orfaos };
+}
+
 // ─── Log de sincronização ─────────────────────────────────────────────────────
 
 export async function insertSyncLog(

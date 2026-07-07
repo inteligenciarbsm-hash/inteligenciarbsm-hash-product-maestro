@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { log } from "./logger.ts";
 import { findHeaderRow, transformRows } from "./mapper.ts";
-import { insertSyncLog, upsertOcorrencias } from "./repository.ts";
+import { insertSyncLog, removerOrfaos, upsertOcorrencias } from "./repository.ts";
 import { fetchSheetValues } from "./sheets.ts";
 
 Deno.serve(async (_req: Request): Promise<Response> => {
@@ -63,6 +63,17 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
     const linhasAtualizadas = await upsertOcorrencias(supabase, result.ocorrencias);
 
+    // ── 4.1 Remover órfãos — só roda depois que o UPSERT terminou com sucesso ──
+    // Mantém sac_ocorrencias espelhando exatamente a planilha: qualquer
+    // num_ocorrencia que não veio neste lote foi apagado (ou renomeado) na
+    // fonte, e é removido também do banco.
+
+    const numerosValidos = result.ocorrencias.map((o) => o.num_ocorrencia);
+    const { removidos: linhasRemovidas, numerosRemovidos } = await removerOrfaos(
+      supabase,
+      numerosValidos
+    );
+
     // ── 5. Registrar log ──────────────────────────────────────────────────────
 
     const finalizadoEm = new Date().toISOString();
@@ -75,6 +86,18 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         ? "parcial"
         : "ok";
 
+    // linhas_removidas não tem coluna própria em sac_sync_log (schema não foi
+    // alterado) — a contagem e os números removidos entram no mesmo campo de
+    // texto "erro" já usado para avisos de duplicata, mesmo com status "ok".
+    const mensagens = [...result.erros];
+    if (linhasRemovidas > 0) {
+      mensagens.push(
+        `${linhasRemovidas} ocorrência(s) removida(s) por não existirem mais na planilha: ` +
+          numerosRemovidos.join(", ") +
+          "."
+      );
+    }
+
     await insertSyncLog(supabase, {
       iniciado_em: iniciadoEm,
       finalizado_em: finalizadoEm,
@@ -85,10 +108,10 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       linhas_atualizadas: linhasAtualizadas,
       linhas_ignoradas: linhasIgnoradas,
       linhas_com_erro: linhasComErro,
-      erro: result.erros.length > 0 ? result.erros.join("\n") : null,
+      erro: mensagens.length > 0 ? mensagens.join("\n") : null,
     });
 
-    log("INFO", "sync-sac concluído", { status, duracao_ms: duracaoMs });
+    log("INFO", "sync-sac concluído", { status, duracao_ms: duracaoMs, linhas_removidas: linhasRemovidas });
 
     return new Response(
       JSON.stringify({
@@ -100,8 +123,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         linhas_atualizadas: linhasAtualizadas,
         linhas_ignoradas: linhasIgnoradas,
         linhas_duplicadas: result.linhasDuplicadas,
+        linhas_removidas: linhasRemovidas,
         linhas_com_erro: linhasComErro,
-        erros: result.erros,
+        erros: mensagens,
       }),
       { headers: { "Content-Type": "application/json" }, status: 200 }
     );
