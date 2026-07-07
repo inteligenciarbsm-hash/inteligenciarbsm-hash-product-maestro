@@ -72,6 +72,40 @@ const DATE_FIELDS = new Set<keyof OcorrenciaInsert>([
 
 const INTEGER_FIELDS = new Set<keyof OcorrenciaInsert>(["dias_resolucao"]);
 
+// ─── Normalização de data — particularidade da fonte Google Sheets ───────────
+// A exportação CSV do Google Sheets grava datas em formato americano
+// (M/D/AAAA), mas parseDate() em parser.ts espera D/M/AAAA. Em vez de alterar
+// o parser genérico, invertemos aqui — é uma particularidade desta fonte de
+// dados, não do parser em si.
+
+function normalizeUsDate(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return value;
+  const [, mes, dia, ano] = match;
+  return `${dia}/${mes}/${ano}`;
+}
+
+// ─── Normalização de criticidade — particularidade da fonte Google Sheets ────
+// A planilha usa um vocabulário próprio (MUITO CRÍTICO / CRÍTICO / POUCO
+// CRÍTICO / NÃO SE APLICA) diferente do que o restante da aplicação espera
+// (Alta / Média / Baixa — usado em derivarStatus, KPIs, score de saúde,
+// alertas e gráficos). Traduzido aqui, antes do UPSERT, para que o banco e o
+// dashboard continuem vendo sempre o mesmo vocabulário, independente da fonte.
+
+const CRITICIDADE_MAP: Record<string, string> = {
+  "MUITO CRÍTICO": "Alta",
+  "CRÍTICO": "Alta",
+  "POUCO CRÍTICO": "Média",
+  "NÃO SE APLICA": "Baixa",
+};
+
+function normalizeCriticidade(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const chave = value.trim().toUpperCase();
+  return CRITICIDADE_MAP[chave] ?? value;
+}
+
 // ─── Funções ──────────────────────────────────────────────────────────────────
 
 export function findHeaderRow(values: unknown[][]): number {
@@ -84,7 +118,7 @@ export function findHeaderRow(values: unknown[][]): number {
   if (idx === -1) {
     throw new Error(
       `Cabeçalho "${ANCHOR_HEADER}" não encontrado nas 10 primeiras linhas. ` +
-        `Verifique o valor de "sac.sheet_name" em system_config.`
+        `Verifique se GOOGLE_SHEET_GID aponta para a aba correta da planilha.`
     );
   }
 
@@ -122,8 +156,9 @@ function parseField(
   field: keyof OcorrenciaInsert,
   value: unknown
 ): string | number | null {
-  if (DATE_FIELDS.has(field)) return parseDate(value);
+  if (DATE_FIELDS.has(field)) return parseDate(normalizeUsDate(value));
   if (INTEGER_FIELDS.has(field)) return parseInteger(value);
+  if (field === "criticidade") return parseText(normalizeCriticidade(value));
   return parseText(value);
 }
 

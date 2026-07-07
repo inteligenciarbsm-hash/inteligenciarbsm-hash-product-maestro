@@ -1,8 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildWorkbookUrl, getAccessToken, readWorksheet } from "./graph.ts";
 import { log } from "./logger.ts";
 import { findHeaderRow, transformRows } from "./mapper.ts";
-import { getConfig, insertSyncLog, upsertOcorrencias } from "./repository.ts";
+import { insertSyncLog, upsertOcorrencias } from "./repository.ts";
+import { fetchSheetValues } from "./sheets.ts";
 
 Deno.serve(async (_req: Request): Promise<Response> => {
   const inicio = Date.now();
@@ -23,42 +23,21 @@ Deno.serve(async (_req: Request): Promise<Response> => {
   try {
     // ── 1. Validar credenciais ────────────────────────────────────────────────
 
-    const tenantId = Deno.env.get("GRAPH_TENANT_ID");
-    const clientId = Deno.env.get("GRAPH_CLIENT_ID");
-    const clientSecret = Deno.env.get("GRAPH_CLIENT_SECRET");
-    const siteId = Deno.env.get("GRAPH_SITE_ID");
-    const driveId = Deno.env.get("GRAPH_DRIVE_ID");
-    const itemId = Deno.env.get("GRAPH_ITEM_ID");
+    const sheetId = Deno.env.get("GOOGLE_SHEET_ID");
+    const sheetGid = Deno.env.get("GOOGLE_SHEET_GID") || undefined;
 
-    const faltando = [
-      !tenantId && "GRAPH_TENANT_ID",
-      !clientId && "GRAPH_CLIENT_ID",
-      !clientSecret && "GRAPH_CLIENT_SECRET",
-      !itemId && "GRAPH_ITEM_ID",
-      !siteId && !driveId && "GRAPH_SITE_ID ou GRAPH_DRIVE_ID",
-    ].filter(Boolean);
-
-    if (faltando.length > 0) {
+    if (!sheetId) {
       throw new Error(
-        `Secrets não configurados: ${faltando.join(", ")}. ` +
-          `Execute: supabase secrets set <KEY>=<VALUE>`
+        "Secret não configurado: GOOGLE_SHEET_ID. " +
+          "Execute: supabase secrets set GOOGLE_SHEET_ID=<id-da-planilha>"
       );
     }
 
-    // ── 2. Ler configurações do banco ─────────────────────────────────────────
+    // ── 2. Ler planilha do Google Sheets ──────────────────────────────────────
 
-    const sheetName = await getConfig(supabase, "sac.sheet_name", "SAC 2026");
+    const values = await fetchSheetValues(sheetId, sheetGid);
 
-    // ── 3. Obter token OAuth ──────────────────────────────────────────────────
-
-    const accessToken = await getAccessToken(tenantId!, clientId!, clientSecret!);
-
-    // ── 4. Construir URL e ler planilha ───────────────────────────────────────
-
-    const workbookUrl = buildWorkbookUrl(siteId, driveId, itemId!);
-    const values = await readWorksheet(accessToken, workbookUrl, sheetName!);
-
-    // ── 5. Localizar cabeçalho e transformar linhas ───────────────────────────
+    // ── 3. Localizar cabeçalho e transformar linhas ───────────────────────────
 
     const syncTs = iniciadoEm;
     const headerRowIndex = findHeaderRow(values);
@@ -75,11 +54,11 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       linhas_importadas: result.ocorrencias.length,
     });
 
-    // ── 6. Persistir no banco ─────────────────────────────────────────────────
+    // ── 4. Persistir no banco ─────────────────────────────────────────────────
 
     const linhasAtualizadas = await upsertOcorrencias(supabase, result.ocorrencias);
 
-    // ── 7. Registrar log ──────────────────────────────────────────────────────
+    // ── 5. Registrar log ──────────────────────────────────────────────────────
 
     const finalizadoEm = new Date().toISOString();
     const duracaoMs = Date.now() - inicio;
