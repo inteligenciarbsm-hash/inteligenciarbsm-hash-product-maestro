@@ -44,12 +44,17 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     const result = transformRows(values, headerRowIndex, syncTs);
 
     linhasLidas = result.linhasLidas;
-    linhasIgnoradas = result.linhasIgnoradas;
+    // Linhas ignoradas = sem Nº OCORRÊNCIA (em branco) + duplicadas dentro do
+    // lote (mesmo Nº OCORRÊNCIA repetido — mantida só a primeira ocorrência,
+    // ver removerDuplicatas() em mapper.ts). Não altera o schema do banco:
+    // continua usando a mesma coluna linhas_ignoradas de sac_sync_log.
+    linhasIgnoradas = result.linhasIgnoradas + result.linhasDuplicadas;
     linhasComErro = result.linhasComErro;
 
     log("INFO", "Transformação concluída", {
       linhas_lidas: linhasLidas,
       linhas_ignoradas: linhasIgnoradas,
+      linhas_duplicadas: result.linhasDuplicadas,
       linhas_com_erro: linhasComErro,
       linhas_importadas: result.ocorrencias.length,
     });
@@ -94,6 +99,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         linhas_importadas: result.ocorrencias.length,
         linhas_atualizadas: linhasAtualizadas,
         linhas_ignoradas: linhasIgnoradas,
+        linhas_duplicadas: result.linhasDuplicadas,
         linhas_com_erro: linhasComErro,
         erros: result.erros,
       }),

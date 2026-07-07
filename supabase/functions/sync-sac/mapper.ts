@@ -167,8 +167,62 @@ export type TransformResult = {
   linhasLidas: number;
   linhasIgnoradas: number;
   linhasComErro: number;
+  linhasDuplicadas: number;
   erros: string[];
 };
+
+// ─── Deduplicação por num_ocorrencia ──────────────────────────────────────────
+// O UPSERT usa num_ocorrencia como chave de conflito (onConflict). Se duas
+// linhas do MESMO lote tiverem o mesmo número (ex: erro de copiar/colar na
+// planilha), o Postgres falha com "ON CONFLICT DO UPDATE command cannot
+// affect row a second time" — ele não consegue aplicar DO UPDATE duas vezes
+// na mesma linha dentro de uma única instrução. Mantemos aqui só a primeira
+// ocorrência de cada número e descartamos as repetições, sem interromper o
+// restante da sincronização.
+
+type LinhaComPosicao = { ocorrencia: OcorrenciaInsert; linhaExcel: number };
+
+function removerDuplicatas(itens: LinhaComPosicao[]): {
+  ocorrencias: OcorrenciaInsert[];
+  linhasDuplicadas: number;
+  erros: string[];
+} {
+  const vistos = new Map<string, number>(); // num_ocorrencia -> linhaExcel da primeira aparição
+  const linhasPorNumero = new Map<string, number[]>(); // num_ocorrencia -> todas as linhas onde aparece
+  const ocorrencias: OcorrenciaInsert[] = [];
+
+  for (const { ocorrencia, linhaExcel } of itens) {
+    const numero = ocorrencia.num_ocorrencia;
+    if (!linhasPorNumero.has(numero)) linhasPorNumero.set(numero, []);
+    linhasPorNumero.get(numero)!.push(linhaExcel);
+
+    if (vistos.has(numero)) continue;
+    vistos.set(numero, linhaExcel);
+    ocorrencias.push(ocorrencia);
+  }
+
+  const erros: string[] = [];
+  let linhasDuplicadas = 0;
+
+  for (const [numero, linhas] of linhasPorNumero) {
+    if (linhas.length <= 1) continue;
+    const [primeira, ...repetidas] = linhas;
+    linhasDuplicadas += repetidas.length;
+    const rotulo = repetidas.length === 1 ? "ignorada linha" : "ignoradas linhas";
+    const msg =
+      `Nº OCORRÊNCIA duplicado "${numero}":\n` +
+      `mantida linha ${primeira},\n` +
+      `${rotulo} ${repetidas.join(", ")}.`;
+    erros.push(msg);
+    log("WARN", "Nº OCORRÊNCIA duplicado no lote — mantida a primeira ocorrência", {
+      num_ocorrencia: numero,
+      linha_mantida: primeira,
+      linhas_ignoradas: repetidas,
+    });
+  }
+
+  return { ocorrencias, linhasDuplicadas, erros };
+}
 
 export function transformRows(
   values: unknown[][],
@@ -179,7 +233,7 @@ export function transformRows(
   const colIndex = buildColIndex(headers);
   const dataRows = values.slice(headerRowIndex + 1) as unknown[][];
 
-  const ocorrencias: OcorrenciaInsert[] = [];
+  const itens: LinhaComPosicao[] = [];
   const erros: string[] = [];
   let linhasLidas = 0;
   let linhasIgnoradas = 0;
@@ -195,9 +249,10 @@ export function transformRows(
     }
 
     linhasLidas++;
+    const linhaExcel = headerRowIndex + 1 + i + 1;
 
     try {
-      ocorrencias.push({
+      const ocorrencia: OcorrenciaInsert = {
         num_ocorrencia: numOcorrencia,
         data_email: parseField("data_email", getCell(row, colIndex, "data_email")) as string | null,
         produto: parseField("produto", getCell(row, colIndex, "produto")) as string | null,
@@ -220,15 +275,25 @@ export function transformRows(
         dias_resolucao: parseField("dias_resolucao", getCell(row, colIndex, "dias_resolucao")) as number | null,
         observacao: parseField("observacao", getCell(row, colIndex, "observacao")) as string | null,
         sincronizado_em: syncTs,
-      });
+      };
+      itens.push({ ocorrencia, linhaExcel });
     } catch (err) {
       linhasComErro++;
-      const linhaExcel = headerRowIndex + 1 + i + 1;
       const msg = err instanceof Error ? err.message : String(err);
       erros.push(`Linha ${linhaExcel} (${numOcorrencia}): ${msg}`);
       log("WARN", "Falha ao parsear linha", { linha: linhaExcel, num_ocorrencia: numOcorrencia, erro: msg });
     }
   }
 
-  return { ocorrencias, linhasLidas, linhasIgnoradas, linhasComErro, erros };
+  const dedup = removerDuplicatas(itens);
+  erros.push(...dedup.erros);
+
+  return {
+    ocorrencias: dedup.ocorrencias,
+    linhasLidas,
+    linhasIgnoradas,
+    linhasComErro,
+    linhasDuplicadas: dedup.linhasDuplicadas,
+    erros,
+  };
 }
