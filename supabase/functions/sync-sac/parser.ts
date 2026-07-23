@@ -28,6 +28,12 @@ export function parseDate(value: unknown): string | null {
   const brMatch = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (brMatch) {
     const [, d, m, y] = brMatch;
+    const dNum = Number(d);
+    const mNum = Number(m);
+    // Defesa contra datas inválidas (ex: mês 15) que passariam pelo parse mas
+    // quebrariam o UPSERT inteiro no Postgres — melhor descartar o campo do
+    // que derrubar a sincronização de todas as outras linhas.
+    if (mNum < 1 || mNum > 12 || dNum < 1 || dNum > 31) return null;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
 

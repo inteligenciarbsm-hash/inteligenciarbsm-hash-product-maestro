@@ -77,13 +77,19 @@ const INTEGER_FIELDS = new Set<keyof OcorrenciaInsert>(["dias_resolucao"]);
 // (M/D/AAAA), mas parseDate() em parser.ts espera D/M/AAAA. Em vez de alterar
 // o parser genérico, invertemos aqui — é uma particularidade desta fonte de
 // dados, não do parser em si.
+//
+// Bug corrigido: quando o primeiro número não pode ser mês (> 12), o valor já
+// não está em M/D/AAAA — inverter cegamente produzia datas inválidas (ex:
+// "15/1/2026" virava "1/15/2026", lido depois como mês=15). Nesse caso o
+// valor já está em D/M/AAAA e não deve ser invertido.
 
 function normalizeUsDate(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) return value;
-  const [, mes, dia, ano] = match;
-  return `${dia}/${mes}/${ano}`;
+  const [, primeiro, segundo, ano] = match;
+  if (Number(primeiro) > 12) return value;
+  return `${segundo}/${primeiro}/${ano}`;
 }
 
 // ─── Normalização de criticidade — particularidade da fonte Google Sheets ────
