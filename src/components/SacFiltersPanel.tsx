@@ -17,10 +17,8 @@ const PERIODO_OPTIONS: { value: PeriodoPreset; label: string }[] = [
 ];
 
 const STATUS_OPTIONS: { value: NonNullable<SacFiltrosTabela["status"]>; label: string }[] = [
-  { value: "critica", label: "Crítica" },
-  { value: "atrasada", label: "Atrasada" },
-  { value: "aberta", label: "Em andamento" },
-  { value: "encerrada", label: "Encerrada" },
+  { value: "aberto", label: "Aberto" },
+  { value: "finalizado", label: "Finalizado" },
 ];
 
 type SacFiltersPanelProps = {

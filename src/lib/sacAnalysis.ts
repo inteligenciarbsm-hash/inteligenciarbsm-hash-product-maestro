@@ -602,7 +602,9 @@ export type SacFiltrosTabela = {
   associado?: string;
   criticidade?: string;
   tipoOcorrencia?: string;
-  status?: OcorrenciaStatus;
+  // Filtro do topo simplificado: agrupa os 4 status derivados em 2 opções.
+  // "aberto" cobre aberta/atrasada/critica; "finalizado" cobre encerrada.
+  status?: "aberto" | "finalizado";
 };
 
 export function calcularIntervaloPeriodo(
@@ -652,7 +654,11 @@ export function filtrarOcorrencias(
     if (filtros.associado && o.associado !== filtros.associado) return false;
     if (filtros.criticidade && o.criticidade !== filtros.criticidade) return false;
     if (filtros.tipoOcorrencia && o.tipo_ocorrencia !== filtros.tipoOcorrencia) return false;
-    if (filtros.status && derivarStatus(o, slaDias) !== filtros.status) return false;
+    if (filtros.status) {
+      const finalizada = derivarStatus(o, slaDias) === "encerrada";
+      if (filtros.status === "finalizado" && !finalizada) return false;
+      if (filtros.status === "aberto" && finalizada) return false;
+    }
 
     if (inicio && (!o.data_email || o.data_email < inicio)) return false;
     if (fim && o.data_email && o.data_email > fim) return false;
