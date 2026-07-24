@@ -22,6 +22,7 @@ export type Database = {
           produto: string | null
           fornecedor: string | null
           associado: string | null
+          endereco_loja: string | null
           tipo_ocorrencia: string | null
           criticidade: string | null
           ocorrencia_descricao: string | null
@@ -47,6 +48,7 @@ export type Database = {
           produto?: string | null
           fornecedor?: string | null
           associado?: string | null
+          endereco_loja?: string | null
           tipo_ocorrencia?: string | null
           criticidade?: string | null
           ocorrencia_descricao?: string | null
@@ -72,6 +74,7 @@ export type Database = {
           produto?: string | null
           fornecedor?: string | null
           associado?: string | null
+          endereco_loja?: string | null
           tipo_ocorrencia?: string | null
           criticidade?: string | null
           ocorrencia_descricao?: string | null

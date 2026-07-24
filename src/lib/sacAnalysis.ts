@@ -12,6 +12,7 @@ export type SacOcorrencia = {
   produto: string | null;
   fornecedor: string | null;
   associado: string | null;
+  endereco_loja: string | null;
   tipo_ocorrencia: string | null;
   criticidade: string | null;
   ocorrencia_descricao: string | null;
@@ -598,6 +599,7 @@ export type SacFiltrosTabela = {
   periodo?: PeriodoPreset;
   produto?: string;
   fornecedor?: string;
+  associado?: string;
   criticidade?: string;
   tipoOcorrencia?: string;
   status?: OcorrenciaStatus;
@@ -647,6 +649,7 @@ export function filtrarOcorrencias(
   return ocorrencias.filter((o) => {
     if (filtros.produto && o.produto !== filtros.produto) return false;
     if (filtros.fornecedor && o.fornecedor !== filtros.fornecedor) return false;
+    if (filtros.associado && o.associado !== filtros.associado) return false;
     if (filtros.criticidade && o.criticidade !== filtros.criticidade) return false;
     if (filtros.tipoOcorrencia && o.tipo_ocorrencia !== filtros.tipoOcorrencia) return false;
     if (filtros.status && derivarStatus(o, slaDias) !== filtros.status) return false;

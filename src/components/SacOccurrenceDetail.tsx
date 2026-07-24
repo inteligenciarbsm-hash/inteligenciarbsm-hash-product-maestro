@@ -119,6 +119,7 @@ const SacOccurrenceDetail = ({ ocorrencia, open, onOpenChange }: SacOccurrenceDe
             <dl className="grid grid-cols-2 gap-4">
               <Campo label="Fornecedor" valor={ocorrencia.fornecedor} />
               <Campo label="Associado" valor={ocorrencia.associado} />
+              <Campo label="Endereço da loja" valor={ocorrencia.endereco_loja} />
             </dl>
           </section>
 

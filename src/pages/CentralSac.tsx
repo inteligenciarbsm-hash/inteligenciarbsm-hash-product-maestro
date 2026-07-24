@@ -106,7 +106,7 @@ const CentralSac = () => {
   const [filtros, setFiltros] = useState<SacFiltrosTabela>({});
 
   const opcoesFiltro = useMemo(() => {
-    const unicos = (campo: "produto" | "fornecedor" | "criticidade" | "tipo_ocorrencia") => {
+    const unicos = (campo: "produto" | "fornecedor" | "associado" | "criticidade" | "tipo_ocorrencia") => {
       const set = new Set<string>();
       (ocorrencias ?? []).forEach((o) => {
         const valor = o[campo];
@@ -117,6 +117,7 @@ const CentralSac = () => {
     return {
       produtos: unicos("produto"),
       fornecedores: unicos("fornecedor"),
+      associados: unicos("associado"),
       criticidades: unicos("criticidade"),
       tipos: unicos("tipo_ocorrencia"),
     };

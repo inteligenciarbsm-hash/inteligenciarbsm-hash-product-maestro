@@ -28,6 +28,7 @@ type SacFiltersPanelProps = {
   opcoes: {
     produtos: string[];
     fornecedores: string[];
+    associados: string[];
     criticidades: string[];
     tipos: string[];
   };
@@ -40,6 +41,7 @@ const temFiltroAtivo = (filtros: SacFiltrosTabela): boolean =>
     (filtros.periodo && filtros.periodo !== "todos") ||
       filtros.produto ||
       filtros.fornecedor ||
+      filtros.associado ||
       filtros.criticidade ||
       filtros.tipoOcorrencia ||
       filtros.status
@@ -63,7 +65,7 @@ const SacFiltersPanel = ({ filtros, opcoes, onChange, onLimpar }: SacFiltersPane
         )}
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="sac-filtro-periodo">Período</Label>
             <Select
@@ -95,6 +97,26 @@ const SacFiltersPanel = ({ filtros, opcoes, onChange, onLimpar }: SacFiltersPane
               <SelectContent>
                 <SelectItem value={TODOS}>Todos os fornecedores</SelectItem>
                 {opcoes.fornecedores.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sac-filtro-socio">Sócio</Label>
+            <Select
+              value={filtros.associado ?? TODOS}
+              onValueChange={(v) => onChange({ associado: v === TODOS ? undefined : v })}
+            >
+              <SelectTrigger id="sac-filtro-socio">
+                <SelectValue placeholder="Todos os sócios" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todos os sócios</SelectItem>
+                {opcoes.associados.map((v) => (
                   <SelectItem key={v} value={v}>
                     {v}
                   </SelectItem>

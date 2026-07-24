@@ -9,6 +9,7 @@ export type OcorrenciaInsert = {
   produto: string | null;
   fornecedor: string | null;
   associado: string | null;
+  endereco_loja: string | null;
   tipo_ocorrencia: string | null;
   criticidade: string | null;
   ocorrencia_descricao: string | null;
@@ -42,6 +43,7 @@ export const COLUMN_MAP: Record<string, keyof OcorrenciaInsert> = {
   "LOTE": "lote",
   "FORNECEDOR": "fornecedor",
   "ASSOCIADO/SÓCIO": "associado",
+  "ENDEREÇO LOJA": "endereco_loja",
   "OCORRÊNCIA": "ocorrencia_descricao",
   "TIPO DE OCORRÊNCIA": "tipo_ocorrencia",
   "CRITICIDADE": "criticidade",
@@ -71,26 +73,6 @@ const DATE_FIELDS = new Set<keyof OcorrenciaInsert>([
 ]);
 
 const INTEGER_FIELDS = new Set<keyof OcorrenciaInsert>(["dias_resolucao"]);
-
-// ─── Normalização de data — particularidade da fonte Google Sheets ───────────
-// A exportação CSV do Google Sheets grava datas em formato americano
-// (M/D/AAAA), mas parseDate() em parser.ts espera D/M/AAAA. Em vez de alterar
-// o parser genérico, invertemos aqui — é uma particularidade desta fonte de
-// dados, não do parser em si.
-//
-// Bug corrigido: quando o primeiro número não pode ser mês (> 12), o valor já
-// não está em M/D/AAAA — inverter cegamente produzia datas inválidas (ex:
-// "15/1/2026" virava "1/15/2026", lido depois como mês=15). Nesse caso o
-// valor já está em D/M/AAAA e não deve ser invertido.
-
-function normalizeUsDate(value: unknown): unknown {
-  if (typeof value !== "string") return value;
-  const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!match) return value;
-  const [, primeiro, segundo, ano] = match;
-  if (Number(primeiro) > 12) return value;
-  return `${segundo}/${primeiro}/${ano}`;
-}
 
 // ─── Normalização de criticidade — particularidade da fonte Google Sheets ────
 // A planilha usa um vocabulário próprio (MUITO CRÍTICO / CRÍTICO / POUCO
@@ -162,7 +144,11 @@ function parseField(
   field: keyof OcorrenciaInsert,
   value: unknown
 ): string | number | null {
-  if (DATE_FIELDS.has(field)) return parseDate(normalizeUsDate(value));
+  // A exportação CSV do Google Sheets grava datas em D/M/AAAA (locale BR),
+  // formato que parseDate() já espera diretamente — confirmado via diagnóstico
+  // no valor bruto "11/07/2026" (dia 11, mês 07), que uma inversão para
+  // formato US produzia incorretamente como novembro.
+  if (DATE_FIELDS.has(field)) return parseDate(value);
   if (INTEGER_FIELDS.has(field)) return parseInteger(value);
   if (field === "criticidade") return parseText(normalizeCriticidade(value));
   return parseText(value);
@@ -264,6 +250,7 @@ export function transformRows(
         produto: parseField("produto", getCell(row, colIndex, "produto")) as string | null,
         fornecedor: parseField("fornecedor", getCell(row, colIndex, "fornecedor")) as string | null,
         associado: parseField("associado", getCell(row, colIndex, "associado")) as string | null,
+        endereco_loja: parseField("endereco_loja", getCell(row, colIndex, "endereco_loja")) as string | null,
         tipo_ocorrencia: parseField("tipo_ocorrencia", getCell(row, colIndex, "tipo_ocorrencia")) as string | null,
         criticidade: parseField("criticidade", getCell(row, colIndex, "criticidade")) as string | null,
         ocorrencia_descricao: parseField("ocorrencia_descricao", getCell(row, colIndex, "ocorrencia_descricao")) as string | null,
