@@ -40,10 +40,10 @@ import {
 // Cores semânticas de criticidade — mesma lógica de RATING_COLORS (Pesquisas.tsx):
 // vermelho para o nível mais grave, verde para o mais brando.
 const CRITICIDADE_COLORS: Record<string, string> = {
-  alta: "hsl(0, 75%, 55%)",
-  média: "hsl(45, 90%, 55%)",
-  media: "hsl(45, 90%, 55%)",
-  baixa: "hsl(140, 60%, 45%)",
+  "muito crítico": "hsl(0, 75%, 55%)",
+  "crítico": "hsl(20, 85%, 55%)",
+  "pouco crítico": "hsl(45, 90%, 55%)",
+  "não se aplica": "hsl(140, 60%, 45%)",
 };
 
 // ─── Skeletons de carregamento ────────────────────────────────────────────────

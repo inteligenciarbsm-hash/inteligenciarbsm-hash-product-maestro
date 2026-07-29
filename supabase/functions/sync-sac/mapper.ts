@@ -75,17 +75,15 @@ const DATE_FIELDS = new Set<keyof OcorrenciaInsert>([
 const INTEGER_FIELDS = new Set<keyof OcorrenciaInsert>(["dias_resolucao"]);
 
 // ─── Normalização de criticidade — particularidade da fonte Google Sheets ────
-// A planilha usa um vocabulário próprio (MUITO CRÍTICO / CRÍTICO / POUCO
-// CRÍTICO / NÃO SE APLICA) diferente do que o restante da aplicação espera
-// (Alta / Média / Baixa — usado em derivarStatus, KPIs, score de saúde,
-// alertas e gráficos). Traduzido aqui, antes do UPSERT, para que o banco e o
-// dashboard continuem vendo sempre o mesmo vocabulário, independente da fonte.
+// Preserva o vocabulário exato da planilha (MUITO CRÍTICO / CRÍTICO / POUCO
+// CRÍTICO / NÃO SE APLICA), só normalizando capitalização — o dashboard usa
+// esses mesmos 4 valores no filtro de criticidade e nos gráficos.
 
 const CRITICIDADE_MAP: Record<string, string> = {
-  "MUITO CRÍTICO": "Alta",
-  "CRÍTICO": "Alta",
-  "POUCO CRÍTICO": "Média",
-  "NÃO SE APLICA": "Baixa",
+  "MUITO CRÍTICO": "Muito Crítico",
+  "CRÍTICO": "Crítico",
+  "POUCO CRÍTICO": "Pouco Crítico",
+  "NÃO SE APLICA": "Não se aplica",
 };
 
 function normalizeCriticidade(value: unknown): unknown {

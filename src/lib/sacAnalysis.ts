@@ -112,6 +112,15 @@ export const SLA_DIAS_DEFAULT = 30;
 
 // ─── Status derivado ──────────────────────────────────────────────────────────
 
+// Os dois níveis mais graves da planilha ("Muito Crítico" e "Crítico")
+// disparam o status/badge "crítica" no dashboard — "Pouco Crítico" e
+// "Não se aplica" não.
+const NIVEIS_CRITICOS = new Set(["muito crítico", "crítico"]);
+
+export function isCriticidadeAlta(criticidade: string | null): boolean {
+  return criticidade ? NIVEIS_CRITICOS.has(criticidade.toLowerCase()) : false;
+}
+
 export function derivarStatus(
   o: SacOcorrencia,
   slaDias = SLA_DIAS_DEFAULT
@@ -122,7 +131,7 @@ export function derivarStatus(
     ? Math.floor((Date.now() - new Date(o.data_email).getTime()) / 86_400_000)
     : 0;
 
-  if (o.criticidade?.toLowerCase() === "alta") return "critica";
+  if (isCriticidadeAlta(o.criticidade)) return "critica";
   if (diasAberta >= slaDias) return "atrasada";
   return "aberta";
 }
@@ -291,7 +300,7 @@ export function gerarAlertas(
     const diasAberta = o.data_email
       ? Math.floor((Date.now() - new Date(o.data_email).getTime()) / 86_400_000)
       : 0;
-    const criticidadeAlta = o.criticidade?.toLowerCase() === "alta";
+    const criticidadeAlta = isCriticidadeAlta(o.criticidade);
 
     if (criticidadeAlta && !o.fornecedor_comunicado_em && diasAberta >= ALERT_DIAS_FORNECEDOR) {
       alertas.push({
@@ -680,7 +689,12 @@ export function filtrarOcorrencias(
 export type SacOrdenacaoCampo = "data" | "criticidade" | "produto" | "fornecedor";
 export type SacOrdenacaoDirecao = "asc" | "desc";
 
-const ORDEM_CRITICIDADE: Record<string, number> = { alta: 0, média: 1, media: 1, baixa: 2 };
+const ORDEM_CRITICIDADE: Record<string, number> = {
+  "muito crítico": 0,
+  "crítico": 1,
+  "pouco crítico": 2,
+  "não se aplica": 3,
+};
 
 function compararCriticidade(a: string | null, b: string | null): number {
   const rankA = a ? ORDEM_CRITICIDADE[a.toLowerCase()] ?? 99 : 99;
