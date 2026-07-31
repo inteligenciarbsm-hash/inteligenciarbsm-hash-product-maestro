@@ -121,11 +121,19 @@ export function isCriticidadeAlta(criticidade: string | null): boolean {
   return criticidade ? NIVEIS_CRITICOS.has(criticidade.toLowerCase()) : false;
 }
 
+// Encerrada = RNC finalizado OU o tempo de finalização já foi preenchido na
+// planilha ("TEMPO DE FINALIZAÇÃO DO SAC (DIAS)..." → dias_resolucao) — a
+// ocorrência pode ter sido fechada sem que a data de RNC finalizado tenha
+// sido registrada separadamente.
+export function isEncerrada(o: SacOcorrencia): boolean {
+  return Boolean(o.rnc_finalizado_em) || o.dias_resolucao !== null;
+}
+
 export function derivarStatus(
   o: SacOcorrencia,
   slaDias = SLA_DIAS_DEFAULT
 ): OcorrenciaStatus {
-  if (o.rnc_finalizado_em) return "encerrada";
+  if (isEncerrada(o)) return "encerrada";
 
   const diasAberta = o.data_email
     ? Math.floor((Date.now() - new Date(o.data_email).getTime()) / 86_400_000)
@@ -165,13 +173,13 @@ export function calcularKpis(
       if (status === "atrasada") atrasadas++;
     }
 
-    if (!o.rnc_finalizado_em) {
+    if (!isEncerrada(o)) {
       if (!o.fornecedor_comunicado_em) aguardandoFornecedor++;
       if (!o.associado_comunicado_em) aguardandoAssociado++;
       if (!o.ressarcimento_em) aguardandoRessarcimento++;
     }
 
-    if (o.rnc_finalizado_em && o.dias_resolucao !== null) {
+    if (o.dias_resolucao !== null) {
       totalDiasResolucao += o.dias_resolucao;
       countResolvidas++;
       if (o.dias_resolucao <= slaDias) dentroDoSla++;
@@ -248,7 +256,7 @@ export function agruparPorMes(ocorrencias: SacOcorrencia[]): MesSerie[] {
     const mes = o.data_email.slice(0, 7);
     const entry = meses.get(mes) ?? { total: 0, encerradas: 0 };
     entry.total++;
-    if (o.rnc_finalizado_em) entry.encerradas++;
+    if (isEncerrada(o)) entry.encerradas++;
     meses.set(mes, entry);
   }
 
@@ -268,9 +276,7 @@ export function calcularSla(
   ocorrencias: SacOcorrencia[],
   slaDias = SLA_DIAS_DEFAULT
 ): SlaResult {
-  const encerradas = ocorrencias.filter(
-    (o) => o.rnc_finalizado_em && o.dias_resolucao !== null
-  );
+  const encerradas = ocorrencias.filter((o) => o.dias_resolucao !== null);
   const dentroDoSla = encerradas.filter(
     (o) => (o.dias_resolucao ?? Infinity) <= slaDias
   ).length;
@@ -295,7 +301,7 @@ export function gerarAlertas(
   const alertas: SacAlerta[] = [];
 
   for (const o of ocorrencias) {
-    if (o.rnc_finalizado_em) continue;
+    if (isEncerrada(o)) continue;
 
     const diasAberta = o.data_email
       ? Math.floor((Date.now() - new Date(o.data_email).getTime()) / 86_400_000)
@@ -547,7 +553,7 @@ export function gerarPrioridades(
   }
 
   const topFornecedor = agruparPorFornecedor(
-    ocorrencias.filter((o) => !o.rnc_finalizado_em),
+    ocorrencias.filter((o) => !isEncerrada(o)),
     1
   )[0];
   if (topFornecedor && topFornecedor.count > 1) {
@@ -595,7 +601,7 @@ export function gerarPrioridades(
 // diferença de datas em mais de um lugar.
 
 export function calcularDiasEmAberto(o: SacOcorrencia): number | null {
-  if (o.rnc_finalizado_em || !o.data_email) return null;
+  if (isEncerrada(o) || !o.data_email) return null;
   return Math.floor((Date.now() - new Date(o.data_email).getTime()) / 86_400_000);
 }
 
