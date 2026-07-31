@@ -43,6 +43,7 @@ const CRITICIDADE_COLORS: Record<string, string> = {
   "muito crítico": "hsl(0, 75%, 55%)",
   "crítico": "hsl(20, 85%, 55%)",
   "pouco crítico": "hsl(45, 90%, 55%)",
+  "não se aplica": "hsl(140, 60%, 45%)",
 };
 
 // ─── Skeletons de carregamento ────────────────────────────────────────────────
