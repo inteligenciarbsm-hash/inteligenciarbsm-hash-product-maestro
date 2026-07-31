@@ -693,7 +693,6 @@ const ORDEM_CRITICIDADE: Record<string, number> = {
   "muito crítico": 0,
   "crítico": 1,
   "pouco crítico": 2,
-  "não se aplica": 3,
 };
 
 function compararCriticidade(a: string | null, b: string | null): number {
