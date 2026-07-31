@@ -121,12 +121,11 @@ export function isCriticidadeAlta(criticidade: string | null): boolean {
   return criticidade ? NIVEIS_CRITICOS.has(criticidade.toLowerCase()) : false;
 }
 
-// Encerrada = RNC finalizado OU o tempo de finalização já foi preenchido na
-// planilha ("TEMPO DE FINALIZAÇÃO DO SAC (DIAS)..." → dias_resolucao) — a
-// ocorrência pode ter sido fechada sem que a data de RNC finalizado tenha
-// sido registrada separadamente.
+// Encerrada = "TEMPO DE FINALIZAÇÃO DO SAC (DIAS)..." preenchido
+// (dias_resolucao). RNC FINALIZADO DATA sozinho NÃO indica encerramento —
+// pode ser preenchido antes do caso realmente fechar.
 export function isEncerrada(o: SacOcorrencia): boolean {
-  return Boolean(o.rnc_finalizado_em) || o.dias_resolucao !== null;
+  return o.dias_resolucao !== null;
 }
 
 export function derivarStatus(
